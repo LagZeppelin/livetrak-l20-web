@@ -33,26 +33,38 @@ function useDrag(pos: number, onPos: (pos: number) => void, axis: 'x' | 'y', spa
   }
 }
 
-/** Vertical meter, dBFS on the fader taper so it lines up with the scale. */
-export function Meter({ level, className }: { level: number | undefined; className?: string }) {
+// Meters light up only to 0 dBFS; the +dB part of the fader scale stays track grey.
+const ZERO = dbToPos(0)
+const covered = (level: number | undefined) =>
+  Math.max(0, (dbToPos(level ?? -99) - ZERO) / (1 - ZERO))
+
+/** Vertical meter on the fader taper so it lines up with the scale. */
+export function Meter({ level }: { level: number | undefined }) {
   return (
-    <div className={cn('meter-fill relative w-1.5 overflow-hidden rounded-full', className)}>
-      <div
-        className="bg-track absolute inset-x-0 top-0"
-        style={{ height: `${dbToPos(level ?? -99) * 100}%` }}
-      />
+    <div className="bg-track relative w-1.5 overflow-hidden rounded-full">
+      <div className="meter-fill absolute inset-x-0 bottom-0" style={{ top: `${ZERO * 100}%` }}>
+        <div
+          className="bg-track absolute inset-x-0 top-0"
+          style={{ height: `${covered(level) * 100}%` }}
+        />
+      </div>
     </div>
   )
 }
 
-/** Horizontal meter for the phone rows. */
+/** Horizontal meter for the phone rows, same zero point as the horizontal faders. */
 export function HMeter({ level }: { level: number | undefined }) {
   return (
-    <div className="relative h-1 overflow-hidden rounded-full bg-[linear-gradient(to_right,#3ecf8e_45%,#f2b44b_70%,#ff2a2a)]">
+    <div className="bg-track relative h-1 overflow-hidden rounded-full">
       <div
-        className="bg-track absolute inset-y-0 right-0"
-        style={{ width: `${dbToPos(level ?? -99) * 100}%` }}
-      />
+        className="absolute inset-y-0 left-0 bg-[linear-gradient(to_right,#3ecf8e_45%,#f2b44b_75%,#ff2a2a)]"
+        style={{ width: `${(1 - ZERO) * 100}%` }}
+      >
+        <div
+          className="bg-track absolute inset-y-0 right-0"
+          style={{ width: `${covered(level) * 100}%` }}
+        />
+      </div>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
 import { useMixerStore } from '@/state/mixerStore'
 import { ChannelDetail } from './screens/ChannelDetail'
+import { MasterDetail } from './screens/MasterDetail'
 import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
 import { Phone } from './screens/Phone'
 import type { View } from './mixView'
@@ -20,7 +21,7 @@ export default function App() {
 
 function Ipad() {
   const [mix, setMix] = useState<View>('main')
-  const [detail, setDetail] = useState<number | null>(null)
+  const [detail, setDetail] = useState<number | 'master' | null>(null)
   const [visible, setVisible] = useState<[number, number]>([1, 8])
 
   const scrollTo = (ch: number) =>
@@ -37,7 +38,7 @@ function Ipad() {
         mix === 'main' || detail ? (
           <>
             <FxReturns />
-            <MasterStrip />
+            <MasterStrip onOpenEq={() => setDetail('master')} />
           </>
         ) : (
           <MonitorPanel mix={mix} />
@@ -46,13 +47,15 @@ function Ipad() {
       overview={
         <Overview
           fx={mix === 'main' && detail === null}
-          highlight={detail ? [detail, detail] : visible}
+          highlight={typeof detail === 'number' ? [detail, detail] : visible}
           onOpen={(ch) => (ch > 20 ? scrollTo(ch) : setDetail(ch))}
           onScroll={(dx) => document.getElementById('strips')?.scrollBy({ left: dx * STRIP_W })}
         />
       }
     >
-      {detail ? (
+      {detail === 'master' ? (
+        <MasterDetail onBack={() => setDetail(null)} />
+      ) : detail ? (
         <ChannelDetail
           ch={detail}
           onBack={() => {

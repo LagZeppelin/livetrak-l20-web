@@ -53,7 +53,7 @@ export function Shell({
         <main className="min-h-0 flex-1 p-4 pb-3">{children}</main>
         {overview}
       </div>
-      <aside className="border-line bg-sidebar/85 flex shrink-0 gap-2 border-l px-2 py-3">
+      <aside className="border-line bg-sidebar/85 divide-line flex shrink-0 divide-x border-l py-3">
         {aside}
       </aside>
     </div>

@@ -17,6 +17,27 @@ function curve(eq: Eq, h: number, range: number) {
   return { line: `M${pts.join(' L')}`, gy }
 }
 
+/** Small read-only picture of the master's 15-band graphic EQ. */
+export function MiniGeq({ geq }: { geq: number[] }) {
+  const pts = geq.map((g, i) => `${((i + 0.5) / geq.length) * W},${30 - (g / EQ_GAIN_MAX) * 26}`)
+  return (
+    <svg
+      viewBox={`0 0 ${W} 60`}
+      preserveAspectRatio="none"
+      className="bg-raised/60 h-12 w-full rounded"
+    >
+      <line x1="0" y1="30" x2={W} y2="30" stroke="#3a3f4b" strokeDasharray="6 6" />
+      <polyline
+        points={pts.join(' ')}
+        fill="none"
+        stroke="#6aaef5"
+        strokeWidth="3"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
+
 /** Small read-only curve in the channel strip. */
 export function MiniEq({ eq }: { eq: Eq }) {
   const { line } = curve(eq, 60, 18)

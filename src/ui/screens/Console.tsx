@@ -3,7 +3,7 @@ import { dbToPos, formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Slider, Icon, Label, ValueBox } from '../components/controls'
-import { MiniEq } from '../components/EqGraph'
+import { MiniEq, MiniGeq } from '../components/EqGraph'
 import { channelNo, linkCommand, mixLevel, sendLevel, type View } from '../mixView'
 
 export const STRIP_W = 111 // strip width + gap, also used to scroll from the overview
@@ -186,7 +186,7 @@ function Strip({
 /** FX1/FX2 returns stacked; used on the main screen and in the channel detail. */
 export function FxReturns() {
   return (
-    <div className="flex w-20 shrink-0 flex-col gap-2">
+    <div className="divide-line flex w-20 shrink-0 flex-col divide-y px-2">
       <FxStrip id="fx1" />
       <FxStrip id="fx2" />
     </div>
@@ -202,7 +202,7 @@ function FxStrip({ id }: { id: FxMixId }) {
   return (
     <section
       id={`strip-${id === 'fx1' ? 21 : 22}`}
-      className="card flex min-h-0 flex-1 flex-col p-2.5"
+      className="flex min-h-0 flex-1 flex-col py-1.5 first:pb-3 last:pt-3"
     >
       <div className="text-sm font-semibold">{id === 'fx1' ? 'FX 1' : 'FX 2'}</div>
       <label className="text-fg2 relative mt-0.5 flex items-center text-xs">
@@ -235,7 +235,7 @@ function FxStrip({ id }: { id: FxMixId }) {
   )
 }
 
-export function MasterStrip() {
+export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
   const main = useMixerStore((s) => s.mixer.main)
   const anySolo = useMixerStore((s) => s.mixer.channels.some((c) => c.solo))
   const left = useMixerStore((s) => s.meters[20])
@@ -243,12 +243,17 @@ export function MasterStrip() {
   const channels = useMixerStore((s) => s.mixer.channels)
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
-    <section aria-label="Master" className="card flex w-24 shrink-0 flex-col p-2.5">
-      <div className="text-lg font-semibold">Master</div>
-      <div className="border-line mt-3 grid grid-cols-[auto_1fr] gap-1.5 border-t pt-3">
+    <section aria-label="Master" className="flex w-30 shrink-0 flex-col px-2 py-1.5">
+      <button type="button" className="text-left text-lg font-semibold" onClick={onOpenEq}>
+        Master
+      </button>
+      <button type="button" aria-label="Master-EQ öffnen" className="mt-2" onClick={onOpenEq}>
+        <MiniGeq geq={main.geq} />
+      </button>
+      <div className="mt-auto grid grid-cols-2 gap-1.5">
         <Btn
           kind={main.mute ? 'mute' : 'plain'}
-          className="h-8 w-9"
+          className="h-8"
           aria-pressed={main.mute}
           onClick={() => dispatch({ type: 'bus', mix: 'main', patch: { mute: !main.mute } })}
         >
@@ -268,7 +273,7 @@ export function MasterStrip() {
           S
         </Btn>
       </div>
-      <ValueBox className="mx-auto mt-auto mb-2 w-[70px]">{formatDb(main.fader)}</ValueBox>
+      <ValueBox className="mx-auto mt-2 mb-2 w-[70px]">{formatDb(main.fader)}</ValueBox>
       <div className="flex h-[62%] min-h-0">
         <Fader
           db={main.fader}
@@ -286,7 +291,7 @@ export function MonitorPanel({ mix }: { mix: MonitorMixId }) {
   const level = useMixerStore((s) => mixLevel(s.mixer, s.meters, mix))
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
-    <section aria-label={`Mix ${mix}`} className="card flex w-[200px] shrink-0 flex-col p-4">
+    <section aria-label={`Mix ${mix}`} className="flex w-[200px] shrink-0 flex-col px-2 py-1.5">
       <div className="text-xl font-semibold">Mix {mix}</div>
       <a
         href={`?phone=${mix}`}
