@@ -1,4 +1,4 @@
-import { type Channel, type FxMixId, type MonitorMixId } from '@/lib/mixer'
+import { EFFECTS, type Channel, type FxMixId, type MonitorMixId } from '@/lib/mixer'
 import { dbToPos, formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
@@ -30,16 +30,22 @@ export function Console({
           onVisible([first, first + Math.floor(el.clientWidth / STRIP_W) - 1])
         }}
       >
-        {channels.map((c) => (
-          <Strip key={c.id} c={c} mix={mix} onOpen={onOpen} />
-        ))}
+        {channels.map((c) =>
+          // a stereo pair shares one card, split by a divider (same width as two strips + gap)
+          c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith ? (
+            <div key={c.id} className="card flex w-[215px] shrink-0 justify-between">
+              <Strip c={c} mix={mix} onOpen={onOpen} bare />
+              <div className="bg-line mx-[3px] my-2.5 w-px" />
+              <Strip c={channels[c.linkedWith - 1]} mix={mix} onOpen={onOpen} bare />
+            </div>
+          ) : (
+            <Strip key={c.id} c={c} mix={mix} onOpen={onOpen} />
+          ),
+        )}
       </div>
       {mix === 'main' ? (
         <>
-          <div className="flex w-[72px] shrink-0 flex-col gap-2">
-            <FxStrip id="fx1" />
-            <FxStrip id="fx2" />
-          </div>
+          <FxReturns />
           <MasterStrip />
         </>
       ) : (
@@ -49,7 +55,18 @@ export function Console({
   )
 }
 
-function Strip({ c, mix, onOpen }: { c: Channel; mix: View; onOpen: (ch: number) => void }) {
+function Strip({
+  c,
+  mix,
+  onOpen,
+  bare,
+}: {
+  c: Channel
+  mix: View
+  onOpen: (ch: number) => void
+  /** inside a stereo pair card: no own card frame */
+  bare?: boolean
+}) {
   const dispatch = useMixerStore((s) => s.dispatch)
   const mixer = useMixerStore((s) => s.mixer)
   const meter = useMixerStore((s) =>
@@ -67,7 +84,7 @@ function Strip({ c, mix, onOpen }: { c: Channel; mix: View; onOpen: (ch: number)
     <section
       id={`strip-${c.id}`}
       aria-label={`Kanal ${c.id} ${c.name}`}
-      className="card flex w-[104px] shrink-0 flex-col px-2.5 pt-2.5 pb-2"
+      className={cn('flex w-[104px] shrink-0 flex-col px-2.5 pt-2.5 pb-2', !bare && 'card')}
     >
       <div className="h-1 rounded-full" style={{ background: c.color }} />
       <button
@@ -174,8 +191,21 @@ function Strip({ c, mix, onOpen }: { c: Channel; mix: View; onOpen: (ch: number)
   )
 }
 
+/** FX1/FX2 returns stacked; used on the main screen and in the channel detail. */
+export function FxReturns() {
+  return (
+    <div className="flex w-20 shrink-0 flex-col gap-2">
+      <FxStrip id="fx1" />
+      <FxStrip id="fx2" />
+    </div>
+  )
+}
+
 function FxStrip({ id }: { id: FxMixId }) {
   const bus = useMixerStore((s) => s.mixer.fx[id])
+  const meter = id === 'fx1' ? 22 : 24
+  const left = useMixerStore((s) => s.meters[meter])
+  const right = useMixerStore((s) => s.meters[meter + 1])
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
     <section
@@ -183,13 +213,30 @@ function FxStrip({ id }: { id: FxMixId }) {
       className="card flex min-h-0 flex-1 flex-col p-2.5"
     >
       <div className="text-sm font-semibold">{id === 'fx1' ? 'FX 1' : 'FX 2'}</div>
-      <div className="text-fg2 text-xs">Effekt {bus.effect + 1}</div>
+      <label className="text-fg2 relative mt-0.5 flex items-center text-xs">
+        <span className="truncate">{EFFECTS[bus.effect]}</span>
+        <Icon name="caret" className="ml-auto size-3.5 shrink-0" />
+        <select
+          aria-label={`Effekt ${id === 'fx1' ? 'FX 1' : 'FX 2'}`}
+          className="absolute inset-0 opacity-0"
+          value={bus.effect}
+          onChange={(e) =>
+            dispatch({ type: 'bus', mix: id, patch: { effect: Number(e.target.value) } })
+          }
+        >
+          {EFFECTS.map((name, i) => (
+            <option key={i} value={i}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
       <ValueBox className="mt-2">{formatDb(bus.fader)}</ValueBox>
       <Fader
         db={bus.fader}
         label={`Fader ${id}`}
         onChange={(db) => dispatch({ type: 'bus', mix: id, patch: { fader: db } })}
-        levels={[]}
+        levels={[left, right]}
         handle="sm"
       />
     </section>
@@ -204,8 +251,7 @@ function MasterStrip() {
   const channels = useMixerStore((s) => s.mixer.channels)
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
-    <section aria-label="Master" className="card flex w-28 shrink-0 flex-col p-2.5">
-      <Label>Main</Label>
+    <section aria-label="Master" className="card flex w-[104px] shrink-0 flex-col p-2.5">
       <div className="text-lg font-semibold">Master</div>
       <div className="border-line mt-3 grid grid-cols-[auto_1fr] gap-1.5 border-t pt-3">
         <Btn
@@ -218,7 +264,8 @@ function MasterStrip() {
         </Btn>
         <Btn
           kind={anySolo ? 'solo' : 'plain'}
-          className="h-8 px-1 text-[11px] whitespace-nowrap"
+          className="h-8"
+          aria-label="Alle Solos aus"
           disabled={!anySolo}
           onClick={() =>
             channels
@@ -226,7 +273,7 @@ function MasterStrip() {
               .forEach((c) => dispatch({ type: 'channel', ch: c.id, patch: { solo: false } }))
           }
         >
-          Solo aus
+          S
         </Btn>
       </div>
       <ValueBox className="mx-auto mt-auto mb-2 w-[70px]">{formatDb(main.fader)}</ValueBox>

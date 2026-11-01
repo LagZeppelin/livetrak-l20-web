@@ -7,7 +7,7 @@ import type { ConnectionStatus, IMixerTransport } from '@/transport/types'
 interface MixerState {
   status: ConnectionStatus
   mixer: Mixer
-  /** Latest meter levels (dBFS), channels 1–20 then main L/R. Kept apart from mixer so meters don't churn it. */
+  /** Latest meter levels (dBFS), channels 1–20, main L/R, FX1 L/R, FX2 L/R. Kept apart from mixer so meters don't churn it. */
   meters: number[]
   /** Channels this device shows in "Ausgewählt" (phone view). Local only, never sent to the mixer. */
   visibleChannels: number[]

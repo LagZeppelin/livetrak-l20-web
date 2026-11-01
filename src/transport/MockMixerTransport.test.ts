@@ -21,7 +21,7 @@ test('sends a snapshot on connect, then meters and a running recorder clock', as
   await transport.disconnect()
 
   const meters = events.find((e) => e.type === 'meters')
-  expect(meters?.type === 'meters' && meters.levels).toHaveLength(22)
+  expect(meters?.type === 'meters' && meters.levels).toHaveLength(26)
   expect(events.filter((e) => e.type === 'recorder').at(-1)).toEqual({
     type: 'recorder',
     patch: { position: 2 },

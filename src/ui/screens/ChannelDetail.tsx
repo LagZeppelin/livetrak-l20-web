@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Slider, Icon, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
+import { FxReturns } from './Console'
 import { channelNo, formatHz, linkCommand } from '../mixView'
 
 const FLAT: Partial<Eq> = { lowCut: false, low: 0, midGain: 0, midFreq: 1000, high: 0 }
@@ -134,7 +135,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </div>
         </section>
 
-        <section className="card flex h-fit w-[340px] shrink-0 flex-col p-4">
+        <section className="card flex h-fit w-[280px] shrink-0 flex-col p-4">
           <div className="flex items-center justify-between">
             <Label>FX-Sends</Label>
             <div className="border-line flex rounded border p-0.5 text-xs">
@@ -224,6 +225,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             label={`Fader ${c.name}`}
           />
         </section>
+        <FxReturns />
       </div>
     </div>
   )

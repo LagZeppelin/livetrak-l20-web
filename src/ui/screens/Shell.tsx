@@ -215,7 +215,7 @@ export function Overview({
         />
         {items.map((ch) => {
           const on = ch >= highlight[0] && ch <= highlight[1]
-          const level = ch <= 20 ? meters[ch - 1] : undefined
+          const level = meters[ch <= 20 ? ch - 1 : 22 + (ch - 21) * 2]
           return (
             <div
               key={ch}

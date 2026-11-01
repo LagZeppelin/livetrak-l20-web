@@ -7,7 +7,7 @@ export type MixerEvent =
   | MixerCommand
   /** Full state, e.g. after connect or scene recall. */
   | { type: 'snapshot'; mixer: Mixer }
-  /** Post-fader levels in dBFS: channels 1–20, then main L/R. */
+  /** Post-fader levels in dBFS: channels 1–20, then main L/R, FX1 L/R, FX2 L/R. */
   | { type: 'meters'; levels: number[] }
 
 /**
