@@ -1,7 +1,7 @@
 /**
  * L-20 data model and the one pure reducer that applies commands to it.
  * Lives in src/lib so transport (mock/BLE/WebSocket), state and UI share it.
- * Everything here is plain JSON so it can travel phone -> iPad -> L-20 unchanged.
+ * Everything here is plain JSON so it can travel browser -> Pi -> L-20 unchanged.
  */
 
 export const CHANNEL_COUNT = 20
@@ -156,7 +156,7 @@ export function canLink(mixer: Mixer, ch: number): boolean {
 
 /**
  * Applies one command and returns a new Mixer (input untouched).
- * Values are clamped and unknown targets ignored: commands may arrive from phones over the LAN.
+ * Values are clamped and unknown targets ignored: commands may arrive from any browser over the LAN.
  * Shape checks of raw JSON (unknown keys, wrong types) belong to the future WebSocket layer.
  * Scene commands are hardware actions; the mixer answers with a full snapshot, so they are no-ops here
  * apart from remembering the slot.

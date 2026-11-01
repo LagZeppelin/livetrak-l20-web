@@ -24,17 +24,18 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 ## Phase 3 – Echte Hardware
 
 9. Protocol Discovery: BLE-MIDI-Traffic des BTA-1 mitschneiden und dokumentieren
-10. `BleMixerTransport` (Web Bluetooth bzw. Capacitor)
-11. iPad als Host: WebSocket-Server, Phones als Clients
+10. `BleMixerTransport` im Node-Server auf dem Pi
+11. Pi als Zentrale: Node-Server liefert Web-App + WebSocket aus, iPad und Phones als Clients (`WebSocketMixerTransport`)
+12. Pi-Setup: Autostart, Updates automatisch aus GitHub
 
 ## Topologie (Entscheidung Ron, 2026-11-01)
 
-- iPad = Hub: Bluetooth (BTA-1) zum L-20 und WLAN zum Router; Phones schicken ihre Befehle übers WLAN ans iPad, das sie an den Mixer weiterreicht.
-- iPad ist Primary beim Master, Secondary in den Monitor-Mixen (Phones besitzen ihren Mix, iPad darf mitändern).
-- Code-Seite: alle Änderungen sind `MixerCommand`s (reines JSON) und laufen durch denselben Reducer `applyCommand`. Phones bekommen später einen WebSocket-Transport, das iPad einen BLE-Transport; der Stereo-Link wird beim Absender aufgelöst, das iPad leitet Befehle unverändert weiter.
+- Zentrale = eigene Raspberry-Pi-Box am Reise-Router (nicht der Licht-Pi). Der Pi spricht Bluetooth (BTA-1) mit dem L-20 und betreibt den Node-Server.
+- iPad und Phones sind reine Browser-Clients im WLAN, keine Capacitor-App. Damit bleiben die Clients OS-unabhängig.
+- iPad ist Primary beim Master, Secondary in den Monitor-Mixen (Phones besitzen ihren Mix, iPad darf mitändern). Durchgesetzt wird das auf dem Pi.
+- Code-Seite: alle Änderungen sind `MixerCommand`s (reines JSON) und laufen durch denselben Reducer `applyCommand`, im Browser wie auf dem Pi. Clients bekommen einen WebSocket-Transport, der Pi den BLE-Transport; der Stereo-Link wird beim Absender aufgelöst, der Pi leitet Befehle unverändert weiter.
 
 ## Offene Fragen / Risiken
 
-- Web Bluetooth gibt es in Safari/iOS nicht → iPad braucht vermutlich eine Capacitor-Shell (oder Bluefy-Browser zum Testen).
-- Ein WebSocket-Server läuft nicht im Browser → ebenfalls Capacitor-Plugin oder kleiner Node-Server im LAN.
+- BLE vom Pi zum BTA-1 (z. B. Node + noble/BlueZ) noch nicht erprobt → früh einen Spike einplanen.
 - L-20-Protokoll über BTA-1 ist nicht offiziell dokumentiert → Phase 3 hat das größte Unsicherheitsrisiko, früh einen Spike einplanen.

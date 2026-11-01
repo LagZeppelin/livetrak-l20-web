@@ -17,7 +17,7 @@ interface MixerState {
   toggleVisible: (ch: number) => void
 }
 
-// shortcut: mock is hard-wired; pick BLE/WebSocket/mock at runtime once those transports exist
+// shortcut: mock is hard-wired; pick WebSocket (to the Pi) or mock at runtime once those transports exist
 const transport: IMixerTransport = new MockMixerTransport()
 
 /** The command for the stereo partner, or null. Pan is mirrored; name, color and phase stay per channel. */
@@ -65,7 +65,7 @@ export const useMixerStore = create<MixerState>()((set, get) => ({
     })),
 }))
 
-// Events from the mixer (or, later, other devices via the iPad) are applied as-is: the sender already linked them.
+// Events from the mixer (or, later, other devices via the Pi) are applied as-is: the sender already linked them.
 transport.onEvent((event) => {
   if (event.type === 'meters') useMixerStore.setState({ meters: event.levels })
   else if (event.type === 'snapshot') useMixerStore.setState({ mixer: event.mixer })

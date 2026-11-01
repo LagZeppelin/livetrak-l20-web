@@ -29,34 +29,31 @@ Ziel des Projekts ist eine moderne, touch-optimierte Oberfläche für iPad und S
 ## 🏗 Architektur
 
 ```text
-[ Musiker A (Phone) ]     [ Musiker B (Phone) ]     [ iPad Mini (Host) ]
-        │                         │                         │
-     (WLAN)                    (WLAN)                 (Lokales UI)
-        │                         │                         │
-        └─────────────────────────┼─────────────────────────┘
-                                  ▼
-                    [ Lokaler WebSocket-Server ]
-                                  │
-                       [ Zentraler Mixer-State ]
-                                  │
-                      [ IMixerTransport Interface ]
-                                 / \
-      [ MockMixerTransport ] ◄───   ───► [ BleMixerTransport ]
-       (Dev / Offline Test)                (Zoom BTA-1 BLE)
-                                                  │
-                                                  ▼
-                                         [ Zoom LiveTrak L-20 ]
+[ iPad (Browser, FOH) ]   [ Phones (Browser, Mix A–F) ]
+            │                        │
+            └──── WLAN (Reise-Router) ┘
+                         ▼
+        [ Raspberry Pi: Node-Server + Web-App ]
+          zentraler Mixer-State, WebSocket
+                         │
+              [ IMixerTransport ]
+                 /            \
+  [ MockMixerTransport ]   [ BleMixerTransport ]
+   (Dev / Offline Test)     (Bluetooth des Pi)
+                                   │
+                          [ Zoom BTA-1 → L-20 ]
 ```
 
 ### 1. Transport-Entkopplung (`IMixerTransport`)
 
-Die UI spricht ausschließlich mit einem standardisierten Interface. Für die Entwicklung zu Hause wird `MockMixerTransport` verwendet (simuliert Fader, Knobs und zufällige Metering-Werte). Im Proberaum wird der `BleMixerTransport` aktiviert.
+Die UI spricht ausschließlich mit einem standardisierten Interface. Für die Entwicklung zu Hause wird `MockMixerTransport` verwendet (simuliert Fader, Knobs und zufällige Metering-Werte). Im Proberaum hält der Pi die BLE-Verbindung.
 
-### 2. Multi-Device Setup (iPad als Host)
+### 2. Multi-Device Setup (Raspberry Pi als Zentrale)
 
-- Das **iPad Mini** hält die einzige aktive Bluetooth-LE-Verbindung zum Zoom BTA-1.
-- Auf dem iPad läuft neben der UI ein schlanker WebSocket-Server (z. B. via Capacitor iOS-Shell).
-- Die Smartphones der Bandmitglieder verbinden sich im Proberaum-WLAN per Browser auf die IP des iPads.
+- Eine eigene **Raspberry-Pi-Box** am Reise-Router hält die einzige Bluetooth-Verbindung zum Zoom BTA-1 und betreibt einen Node-Server (Web-App + WebSocket).
+- iPad und Phones sind reine Browser-Clients im Proberaum-WLAN, keine native App. Das macht die Clients unabhängig vom Betriebssystem.
+- Rollen: iPad ist Primary beim Master, Secondary in den Monitor-Mixen; jedes Phone besitzt seinen Mix (1:1).
+- Updates zieht der Pi selbst aus GitHub, damit niemand von Hand aktualisieren muss.
 
 ---
 
@@ -66,7 +63,7 @@ Die UI spricht ausschließlich mit einem standardisierten Interface. Für die En
 - **Styling & Audio-UI:** Tailwind CSS + [audiocn](https://audiocn.dev) (Fader, Knobs, Level-Meters)
 - **EQ-Kurve:** SVG / Canvas Biquad Frequency Response
 - **State Management:** Zustand
-- **Bluetooth / Transport:** Web Bluetooth API / CoreBluetooth via Capacitor
+- **Bluetooth / Transport:** Node-Server auf dem Raspberry Pi (BLE über dessen Bluetooth), Clients per WebSocket
 
 ---
 

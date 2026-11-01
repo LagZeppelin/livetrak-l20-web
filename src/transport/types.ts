@@ -11,8 +11,8 @@ export type MixerEvent =
   | { type: 'meters'; levels: number[] }
 
 /**
- * The only door between state and the mixer: mock now, BLE (iPad, native shell) later,
- * and on phones a WebSocket client to the iPad. Commands are plain JSON so the iPad can relay
+ * The only door between state and the mixer: mock now; later the browsers (iPad, phones) use a
+ * WebSocket client to the Raspberry Pi, which talks BLE to the L-20. Commands are plain JSON so the Pi can relay
  * a phone's commands to the L-20 unchanged.
  */
 export interface IMixerTransport {
