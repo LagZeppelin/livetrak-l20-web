@@ -1,6 +1,7 @@
 import {
   canLink,
   FADER_MIN,
+  FIXED_STEREO,
   type Channel,
   type Mixer,
   type MixerCommand,
@@ -71,6 +72,9 @@ export function formatHz(f: number) {
 }
 
 export const channelNo = pad
+
+/** 17/18 and 19/20 are stereo inputs on the hardware: one strip, one fader, no pan, no link. */
+export const isFixedStereo = (ch: number) => (FIXED_STEREO as readonly number[]).includes(ch)
 
 /** What the iPad shows: the main mix or one monitor mix. */
 export type View = 'main' | MonitorMixId

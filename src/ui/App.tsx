@@ -5,7 +5,7 @@ import { ChannelDetail } from './screens/ChannelDetail'
 import { MasterDetail } from './screens/MasterDetail'
 import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
 import { Phone } from './screens/Phone'
-import type { View } from './mixView'
+import { isFixedStereo, type View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
 
 // shortcut: the phone view is picked by URL (?phone=C); the Pi will hand out the mix per phone later
@@ -48,7 +48,7 @@ function Ipad() {
         <Overview
           fx={mix === 'main' && detail === null}
           highlight={typeof detail === 'number' ? [detail, detail] : visible}
-          onOpen={(ch) => (ch > 20 ? scrollTo(ch) : setDetail(ch))}
+          onOpen={(ch) => (ch > 20 ? scrollTo(ch) : setDetail(isFixedStereo(ch - 1) ? ch - 1 : ch))}
           onScroll={(dx) => document.getElementById('strips')?.scrollBy({ left: dx * STRIP_W })}
         />
       }

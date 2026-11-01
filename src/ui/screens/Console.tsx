@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Slider, Icon, Label, ValueBox } from '../components/controls'
 import { MiniEq, MiniGeq } from '../components/EqGraph'
-import { channelNo, linkCommand, mixLevel, sendLevel, type View } from '../mixView'
+import { channelNo, isFixedStereo, linkCommand, mixLevel, sendLevel, type View } from '../mixView'
 
 export const STRIP_W = 111 // strip width + gap, also used to scroll from the overview
 
@@ -32,7 +32,7 @@ export function Console({
       >
         {channels.map((c) =>
           // a stereo pair shares one card, split by a divider (same width as two strips + gap)
-          c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith ? (
+          c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith && !isFixedStereo(c.id) ? (
             <div key={c.id} className="card flex w-[215px] shrink-0 justify-between">
               <Strip c={c} mix={mix} onOpen={onOpen} bare />
               <div className="bg-line my-2.5 w-px shrink-0" />
@@ -61,9 +61,11 @@ function Strip({
 }) {
   const dispatch = useMixerStore((s) => s.dispatch)
   const mixer = useMixerStore((s) => s.mixer)
-  const meter = useMixerStore((s) =>
-    mix === 'main' ? s.meters[c.id - 1] : sendLevel(s.mixer, s.meters, c.id, mix),
-  )
+  const fixed = isFixedStereo(c.id)
+  const meterOf = (s: ReturnType<typeof useMixerStore.getState>, ch: number) =>
+    mix === 'main' ? s.meters[ch - 1] : sendLevel(s.mixer, s.meters, ch, mix)
+  const meter = useMixerStore((s) => meterOf(s, c.id))
+  const meterR = useMixerStore((s) => (fixed ? meterOf(s, c.id + 1) : undefined))
   const send = mix === 'main' ? null : c.sends[mix]
   const level = send ? send.level : c.fader
   const link = linkCommand(mixer, c.id)
@@ -84,7 +86,9 @@ function Strip({
         className="mt-2 flex items-baseline gap-1 truncate text-left text-sm font-semibold"
         onClick={() => onOpen(c.id)}
       >
-        <span className="text-fg3 font-mono text-base font-normal">{channelNo(c.id)}</span>
+        <span className="text-fg3 font-mono text-base font-normal">
+          {fixed ? `${c.id}·${c.id + 1}` : channelNo(c.id)}
+        </span>
         <span className="truncate">{c.name}</span>
       </button>
       <button type="button" aria-label="EQ öffnen" className="mt-1.5" onClick={() => onOpen(c.id)}>
@@ -147,38 +151,47 @@ function Strip({
       ) : (
         <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(level)}</ValueBox>
       )}
-      <Fader db={level} onChange={setLevel} levels={[meter]} label={`Fader ${c.name}`} />
-      <div className="border-line mt-2 border-t pt-2">
-        <div className="text-fg3 flex justify-between font-mono text-[10px]">
-          <span>PAN</span>
-          <span className="text-fg">{formatPan(c.pan)}</span>
-        </div>
-        {send ? (
-          <div className="text-fg3 mt-1 text-[10px]">nur im Main-Mix</div>
-        ) : (
-          <Slider
-            pos={(c.pan + 100) / 200}
-            onPos={(p) =>
-              dispatch({ type: 'channel', ch: c.id, patch: { pan: Math.round(p * 200 - 100) } })
-            }
-            origin={0.5}
-            label={`Pan ${c.name}`}
-            valueText={formatPan(c.pan)}
-          />
-        )}
-      </div>
-      <div className="border-line mt-2 border-t pt-2">
-        <Btn
-          kind={c.linkedWith ? 'on' : 'plain'}
-          className="mx-auto h-7 w-9"
-          aria-label={c.linkedWith ? `Stereo-Link mit ${c.linkedWith} lösen` : 'Stereo-Link'}
-          aria-pressed={!!c.linkedWith}
-          disabled={!link}
-          onClick={() => link && dispatch(link)}
-        >
-          <Icon name="link" className="size-4" />
-        </Btn>
-      </div>
+      <Fader
+        db={level}
+        onChange={setLevel}
+        levels={fixed ? [meter, meterR] : [meter]}
+        label={`Fader ${c.name}`}
+      />
+      {!fixed && (
+        <>
+          <div className="border-line mt-2 border-t pt-2">
+            <div className="text-fg3 flex justify-between font-mono text-[10px]">
+              <span>PAN</span>
+              <span className="text-fg">{formatPan(c.pan)}</span>
+            </div>
+            {send ? (
+              <div className="text-fg3 mt-1 text-[10px]">nur im Main-Mix</div>
+            ) : (
+              <Slider
+                pos={(c.pan + 100) / 200}
+                onPos={(p) =>
+                  dispatch({ type: 'channel', ch: c.id, patch: { pan: Math.round(p * 200 - 100) } })
+                }
+                origin={0.5}
+                label={`Pan ${c.name}`}
+                valueText={formatPan(c.pan)}
+              />
+            )}
+          </div>
+          <div className="border-line mt-2 border-t pt-2">
+            <Btn
+              kind={c.linkedWith ? 'on' : 'plain'}
+              className="mx-auto h-7 w-9"
+              aria-label={c.linkedWith ? `Stereo-Link mit ${c.linkedWith} lösen` : 'Stereo-Link'}
+              aria-pressed={!!c.linkedWith}
+              disabled={!link}
+              onClick={() => link && dispatch(link)}
+            >
+              <Icon name="link" className="size-4" />
+            </Btn>
+          </div>
+        </>
+      )}
     </section>
   )
 }

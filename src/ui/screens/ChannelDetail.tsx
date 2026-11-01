@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Slider, Icon, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
-import { channelNo, formatHz, linkCommand } from '../mixView'
+import { channelNo, formatHz, isFixedStereo, linkCommand } from '../mixView'
 
 const FLAT: Partial<Eq> = { lowCut: false, low: 0, midGain: 0, midFreq: 1000, high: 0 }
 const gainPos = (db: number) => (db + EQ_GAIN_MAX) / (2 * EQ_GAIN_MAX)
@@ -17,12 +17,14 @@ const posFreq = (p: number) => Math.round((100 * 80 ** p) / 10) * 10
 export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }) {
   const mixer = useMixerStore((s) => s.mixer)
   const meter = useMixerStore((s) => s.meters[ch - 1])
+  const meterR = useMixerStore((s) => s.meters[ch])
   const dispatch = useMixerStore((s) => s.dispatch)
   const c = mixer.channels[ch - 1]
   const partner = c.linkedWith ? mixer.channels[c.linkedWith - 1] : null
   const link = linkCommand(mixer, ch)
   const eq = (patch: Partial<Eq>) => dispatch({ type: 'eq', ch, patch })
   const pre = c.sends.fx1.pre
+  const fixed = isFixedStereo(ch)
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -32,17 +34,20 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
         </Btn>
         <div className="h-7 w-1 rounded-full" style={{ background: c.color }} />
         <h1 className="flex items-baseline gap-2 text-xl font-semibold">
-          <span className="text-fg3 font-mono text-base font-normal">{channelNo(ch)}</span>
+          <span className="text-fg3 font-mono text-base font-normal">
+            {fixed ? `${ch}·${ch + 1}` : channelNo(ch)}
+          </span>
           {c.name}
         </h1>
-        {partner && (
+        {partner && !fixed && (
           <span className="text-fg2 text-sm">
             Stereo mit {channelNo(partner.id)} {partner.name}
           </span>
         )}
+        {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
         <Btn
           kind={partner ? 'on' : 'plain'}
-          className="ml-auto h-9 px-4"
+          className={cn('ml-auto h-9 px-4', fixed && 'invisible')}
           disabled={!link}
           onClick={() => link && dispatch(link)}
         >
@@ -126,7 +131,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </div>
           <div className="border-line text-fg2 mt-auto space-y-1.5 border-t pt-4 text-xs">
             <p>Punkte in der Kurve ziehen oder Regler drehen. Doppeltippen setzt zurück.</p>
-            {partner && (
+            {partner && !isFixedStereo(ch) && (
               <p>
                 Bei Stereo-Link gilt alles auch für Kanal {partner.id}, der Pan wird gespiegelt.
               </p>
@@ -172,16 +177,18 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
         </section>
 
         <section className="card flex w-28 shrink-0 flex-col items-stretch p-2.5">
-          <Knob
-            label="Pan"
-            size={52}
-            pos={(c.pan + 100) / 200}
-            onPos={(p) =>
-              dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
-            }
-            reset={0.5}
-            valueText={formatPan(c.pan)}
-          />
+          {!fixed && (
+            <Knob
+              label="Pan"
+              size={52}
+              pos={(c.pan + 100) / 200}
+              onPos={(p) =>
+                dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
+              }
+              reset={0.5}
+              valueText={formatPan(c.pan)}
+            />
+          )}
           <Btn
             kind={c.phase ? 'on' : 'plain'}
             className="mt-3 h-8"
@@ -220,7 +227,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           <Fader
             db={c.fader}
             onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
-            levels={[meter]}
+            levels={fixed ? [meter, meterR] : [meter]}
             label={`Fader ${c.name}`}
           />
         </section>
