@@ -3,7 +3,7 @@ import { EQ_GAIN_MAX, type Eq, type FxMixId } from '@/lib/mixer'
 import { formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Fader, Icon, Knob, Label, ValueBox } from '../components/controls'
+import { Btn, Fader, Icon, Slider, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
 import { channelNo, formatHz, isFixedStereo, linkCommand } from '../mixView'
 
@@ -97,21 +97,9 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
 
       <div className="flex min-h-0 flex-1 gap-4">
         <section className="card flex w-28 shrink-0 flex-col items-stretch p-2.5">
-          {!fixed && (
-            <Knob
-              label="Pan"
-              size={52}
-              pos={(c.pan + 100) / 200}
-              onPos={(p) =>
-                dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
-              }
-              reset={0.5}
-              valueText={formatPan(c.pan)}
-            />
-          )}
           <Btn
             kind={c.phase ? 'on' : 'plain'}
-            className="mt-3 h-8"
+            className="h-8"
             aria-pressed={c.phase}
             onClick={() => dispatch({ type: 'channel', ch, patch: { phase: !c.phase } })}
           >
@@ -150,27 +138,44 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             levels={fixed ? [meter, meterR] : [meter]}
             label={`Fader ${c.name}`}
           />
+          {!fixed && (
+            <div className="border-line mt-2 border-t pt-2">
+              <div className="text-fg3 flex justify-between font-mono text-[10px]">
+                <span>PAN</span>
+                <span className="text-fg">{formatPan(c.pan)}</span>
+              </div>
+              <Slider
+                pos={(c.pan + 100) / 200}
+                onPos={(p) =>
+                  dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
+                }
+                origin={0.5}
+                label={`Pan ${c.name}`}
+                valueText={formatPan(c.pan)}
+              />
+            </div>
+          )}
         </section>
         <section className="card flex w-44 shrink-0 flex-col p-3">
-          <div className="flex items-center justify-between gap-2">
-            <Label>FX-Sends</Label>
-            <div className="border-line flex rounded border p-0.5 text-xs">
-              {[true, false].map((v) => (
-                <button
-                  key={String(v)}
-                  type="button"
-                  className={cn('rounded px-2 py-1', pre === v ? 'bg-raised' : 'text-fg2')}
-                  aria-pressed={pre === v}
-                  onClick={() =>
-                    (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
-                      dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
-                    )
-                  }
-                >
-                  {v ? 'Pre' : 'Post'}
-                </button>
-              ))}
-            </div>
+          <div
+            aria-label="FX-Sends Pre/Post"
+            className="border-line grid grid-cols-2 rounded border p-0.5 text-xs"
+          >
+            {[true, false].map((v) => (
+              <button
+                key={String(v)}
+                type="button"
+                className={cn('rounded py-1', pre === v ? 'bg-raised' : 'text-fg2')}
+                aria-pressed={pre === v}
+                onClick={() =>
+                  (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
+                    dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
+                  )
+                }
+              >
+                {v ? 'Pre' : 'Post'}
+              </button>
+            ))}
           </div>
           <div className="divide-line mt-2 flex min-h-0 flex-1 flex-col divide-y">
             {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
