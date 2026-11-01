@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-neutral-950 text-neutral-100 antialiased;
+  /* mixer UI: no rubber-band scroll or double-tap zoom while dragging faders */
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}

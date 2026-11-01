@@ -1,0 +1,6 @@
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+  // read by the shadcn CLI when adding audiocn components
+  "compilerOptions": { "paths": { "@/*": ["./src/*"] } }
+}
