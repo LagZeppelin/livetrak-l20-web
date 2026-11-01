@@ -35,7 +35,7 @@ export function Console({
           c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith ? (
             <div key={c.id} className="card flex w-[215px] shrink-0 justify-between">
               <Strip c={c} mix={mix} onOpen={onOpen} bare />
-              <div className="bg-line mx-[3px] my-2.5 w-px" />
+              <div className="bg-line my-2.5 w-px shrink-0" />
               <Strip c={channels[c.linkedWith - 1]} mix={mix} onOpen={onOpen} bare />
             </div>
           ) : (
