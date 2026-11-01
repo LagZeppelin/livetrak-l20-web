@@ -46,9 +46,8 @@ function Ipad() {
       }
       overview={
         <Overview
-          fx={mix === 'main' && detail === null}
           highlight={typeof detail === 'number' ? [detail, detail] : visible}
-          onOpen={(ch) => (ch > 20 ? scrollTo(ch) : setDetail(isFixedStereo(ch - 1) ? ch - 1 : ch))}
+          onOpen={(ch) => setDetail(isFixedStereo(ch - 1) ? ch - 1 : ch)}
           onScroll={(dx) => document.getElementById('strips')?.scrollBy({ left: dx * STRIP_W })}
         />
       }

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { createMixer } from './mixer'
-import { dbToPos, eqResponse, formatDb, formatPan, formatTime, posToDb } from './scale'
+import { dbToPos, eqResponse, geqResponse, formatDb, formatPan, formatTime, posToDb } from './scale'
 
 test('fader taper round-trips and clamps', () => {
   for (const db of [10, 2, 0, -8, -20, -42.5, -60]) expect(posToDb(dbToPos(db))).toBe(db)
@@ -25,4 +25,12 @@ test('flat EQ is flat, boosts show up where they belong', () => {
   expect(eqResponse(boosted, 800)).toBeCloseTo(6)
   expect(eqResponse({ ...eq, lowCut: true }, 30)).toBeLessThan(-10)
   expect(eqResponse({ ...boosted, on: false }, 800)).toBe(0)
+})
+
+test('graphic EQ: flat is flat, a single band peaks at its own frequency', () => {
+  const geq = Array(15).fill(0)
+  expect(geqResponse(geq, 1000)).toBe(0)
+  geq[8] = 6 // 1 kHz
+  expect(geqResponse(geq, 1000)).toBeCloseTo(6, 0)
+  expect(geqResponse(geq, 100)).toBeCloseTo(0, 1)
 })

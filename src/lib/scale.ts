@@ -1,4 +1,4 @@
-import { FADER_MIN, type Eq } from './mixer'
+import { FADER_MIN, GEQ_BANDS, type Eq } from './mixer'
 
 /** Fader taper from Ron's channel strip design: dB -> position 0 (top, +10) … 1 (bottom, -60). */
 const TAPER: [number, number][] = [
@@ -66,4 +66,15 @@ export function eqResponse(eq: Eq, f: number): number {
   // 12 dB/octave below the cut frequency
   if (eq.lowCut && f < LOW_CUT_HZ * 2) db -= 12 * Math.max(0, oct(LOW_CUT_HZ * 2, f)) ** 1.5
   return db
+}
+
+/**
+ * Approximate graphic EQ response in dB at f Hz, for drawing only: one bell per band
+ * (bands are 2/3 octave apart, so neighbours overlap a little).
+ */
+export function geqResponse(geq: number[], f: number): number {
+  return GEQ_BANDS.reduce(
+    (db, band, i) => db + geq[i] * Math.exp(-(Math.log2(f / band) ** 2) / 0.18),
+    0,
+  )
 }

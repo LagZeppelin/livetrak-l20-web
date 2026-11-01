@@ -1,6 +1,7 @@
 import { EQ_GAIN_MAX, GEQ_BANDS } from '@/lib/mixer'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Icon, Label, Slider, ValueBox } from '../components/controls'
+import { GeqGraph } from '../components/EqGraph'
 
 const hz = (f: number) => (f >= 1000 ? `${f / 1000}k` : String(f))
 // slider pos 0 = top = +15 dB
@@ -28,6 +29,9 @@ export function MasterDetail({ onBack }: { onBack: () => void }) {
       </header>
       <section className="card flex min-h-0 flex-1 flex-col p-4">
         <Label className="mb-3">EQ ±{EQ_GAIN_MAX} dB</Label>
+        <div className="mb-4">
+          <GeqGraph geq={geq} />
+        </div>
         <div className="relative grid min-h-0 flex-1 grid-cols-15">
           {GEQ_BANDS.map((f, band) => (
             <div key={f} className="flex min-h-0 flex-col items-center gap-2">

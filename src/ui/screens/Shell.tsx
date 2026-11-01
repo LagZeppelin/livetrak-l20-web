@@ -3,7 +3,7 @@ import { MONITOR_MIXES, type RecorderState } from '@/lib/mixer'
 import { formatTime } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Icon, Label, StatusPill } from '../components/controls'
+import { Btn, Icon, Label, Meter, StatusPill } from '../components/controls'
 import type { View } from '../mixView'
 
 export function Shell({
@@ -174,16 +174,14 @@ export function Overview({
   highlight,
   onOpen,
   onScroll,
-  fx,
 }: {
   highlight: [number, number]
   onOpen: (ch: number) => void
   onScroll: (dxChannels: number) => void
-  fx: boolean
 }) {
   const meters = useMixerStore((s) => s.meters)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
-  const items = Array.from({ length: 20 }, (_, i) => i + 1).concat(fx ? [21, 22] : [])
+  const items = Array.from({ length: 20 }, (_, i) => i + 1)
   const STEP = 33
 
   return (
@@ -221,21 +219,18 @@ export function Overview({
         />
         {items.map((ch) => {
           const on = ch >= highlight[0] && ch <= highlight[1]
-          const level = meters[ch <= 20 ? ch - 1 : 22 + (ch - 21) * 2]
+          const level = meters[ch - 1]
           return (
             <div
               key={ch}
               data-ch={ch}
-              className="relative flex w-[33px] flex-col items-center py-2"
+              className="relative flex w-[33px] flex-col items-center py-1.5"
             >
               <span className={cn('font-mono text-[11px]', on ? 'font-medium' : 'text-fg2')}>
-                {ch <= 20 ? ch : `FX${ch - 20}`}
+                {ch}
               </span>
-              <div className="bg-track mt-1.5 h-1 w-[22px] overflow-hidden rounded-sm">
-                <div
-                  className="bg-good h-full"
-                  style={{ width: `${Math.max(0, ((level ?? -60) + 60) / 60) * 100}%` }}
-                />
+              <div className="mt-1 flex h-6">
+                <Meter level={level} />
               </div>
             </div>
           )

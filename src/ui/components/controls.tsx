@@ -359,5 +359,6 @@ const ICONS = {
   back: <path d="M19 12H5m6-6-6 6 6 6" />,
   caret: <path d="m7 10 5 5 5-5" />,
   check: <path d="m5 12 5 5 9-10" />,
+  edit: <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />,
   sliders: <path d="M4 7h10m4 0h2M4 17h4m4 0h8M16 5v4M10 15v4" />,
 }

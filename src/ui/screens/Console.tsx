@@ -199,7 +199,7 @@ function Strip({
 /** FX1/FX2 returns stacked; used on the main screen and in the channel detail. */
 export function FxReturns() {
   return (
-    <div className="divide-line flex w-20 shrink-0 flex-col divide-y px-2">
+    <div className="divide-line flex w-24 shrink-0 flex-col divide-y px-3">
       <FxStrip id="fx1" />
       <FxStrip id="fx2" />
     </div>
@@ -215,7 +215,7 @@ function FxStrip({ id }: { id: FxMixId }) {
   return (
     <section
       id={`strip-${id === 'fx1' ? 21 : 22}`}
-      className="flex min-h-0 flex-1 flex-col py-1.5 first:pb-3 last:pt-3"
+      className="flex min-h-0 flex-1 flex-col py-2 first:pb-4 last:pt-4"
     >
       <div className="text-sm font-semibold">{id === 'fx1' ? 'FX 1' : 'FX 2'}</div>
       <label className="text-fg2 relative mt-0.5 flex items-center text-xs">
@@ -256,7 +256,7 @@ export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
   const channels = useMixerStore((s) => s.mixer.channels)
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
-    <section aria-label="Master" className="flex w-30 shrink-0 flex-col px-2 py-1.5">
+    <section aria-label="Master" className="flex w-32 shrink-0 flex-col px-3 py-2">
       <button type="button" className="text-left text-lg font-semibold" onClick={onOpenEq}>
         Master
       </button>
@@ -304,7 +304,7 @@ export function MonitorPanel({ mix }: { mix: MonitorMixId }) {
   const level = useMixerStore((s) => mixLevel(s.mixer, s.meters, mix))
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
-    <section aria-label={`Mix ${mix}`} className="flex w-[200px] shrink-0 flex-col px-2 py-1.5">
+    <section aria-label={`Mix ${mix}`} className="flex w-[216px] shrink-0 flex-col px-3 py-2">
       <div className="text-xl font-semibold">Mix {mix}</div>
       <a
         href={`?phone=${mix}`}

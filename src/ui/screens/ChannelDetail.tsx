@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { EQ_GAIN_MAX, type Eq, type FxMixId } from '@/lib/mixer'
-import { dbToPos, formatDb, formatPan, posToDb } from '@/lib/scale'
+import { formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Fader, Slider, Icon, Knob, Label, ValueBox } from '../components/controls'
+import { Btn, Fader, Icon, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
 import { channelNo, formatHz, isFixedStereo, linkCommand } from '../mixView'
 
@@ -25,9 +26,21 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
   const eq = (patch: Partial<Eq>) => dispatch({ type: 'eq', ch, patch })
   const pre = c.sends.fx1.pre
   const fixed = isFixedStereo(ch)
+  const [editing, setEditing] = useState(false)
 
   return (
     <div className="flex h-full flex-col gap-4">
+      {editing && (
+        <EditDialog
+          name={c.name}
+          color={c.color}
+          onClose={() => setEditing(false)}
+          onSave={(patch) => {
+            dispatch({ type: 'channel', ch, patch })
+            setEditing(false)
+          }}
+        />
+      )}
       <header className="flex items-center gap-4">
         <Btn className="size-10" aria-label="Zurück" onClick={onBack}>
           <Icon name="back" className="size-5" />
@@ -45,9 +58,13 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </span>
         )}
         {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
+        <Btn className="ml-auto h-9 px-4" onClick={() => setEditing(true)}>
+          <Icon name="edit" />
+          Bearbeiten
+        </Btn>
         <Btn
           kind={partner ? 'on' : 'plain'}
-          className={cn('ml-auto h-9 px-4', fixed && 'invisible')}
+          className={cn('h-9 px-4', fixed && 'hidden')}
           disabled={!link}
           onClick={() => link && dispatch(link)}
         >
@@ -79,6 +96,101 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
       </header>
 
       <div className="flex min-h-0 flex-1 gap-4">
+        <section className="card flex w-28 shrink-0 flex-col items-stretch p-2.5">
+          {!fixed && (
+            <Knob
+              label="Pan"
+              size={52}
+              pos={(c.pan + 100) / 200}
+              onPos={(p) =>
+                dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
+              }
+              reset={0.5}
+              valueText={formatPan(c.pan)}
+            />
+          )}
+          <Btn
+            kind={c.phase ? 'on' : 'plain'}
+            className="mt-3 h-8"
+            aria-pressed={c.phase}
+            onClick={() => dispatch({ type: 'channel', ch, patch: { phase: !c.phase } })}
+          >
+            Ø Phase
+          </Btn>
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <Btn
+              kind={c.mute ? 'mute' : 'plain'}
+              className="h-8"
+              aria-pressed={c.mute}
+              onClick={() => dispatch({ type: 'channel', ch, patch: { mute: !c.mute } })}
+            >
+              M
+            </Btn>
+            <Btn
+              kind={c.solo ? 'solo' : 'plain'}
+              className="h-8"
+              aria-pressed={c.solo}
+              onClick={() => dispatch({ type: 'channel', ch, patch: { solo: !c.solo } })}
+            >
+              S
+            </Btn>
+          </div>
+          <Btn
+            kind={c.recSelect ? 'rec' : 'plain'}
+            className="mt-2 h-8"
+            aria-pressed={c.recSelect}
+            onClick={() => dispatch({ type: 'channel', ch, patch: { recSelect: !c.recSelect } })}
+          >
+            Select
+          </Btn>
+          <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(c.fader)}</ValueBox>
+          <Fader
+            db={c.fader}
+            onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
+            levels={fixed ? [meter, meterR] : [meter]}
+            label={`Fader ${c.name}`}
+          />
+        </section>
+        <section className="card flex w-44 shrink-0 flex-col p-3">
+          <div className="flex items-center justify-between gap-2">
+            <Label>FX-Sends</Label>
+            <div className="border-line flex rounded border p-0.5 text-xs">
+              {[true, false].map((v) => (
+                <button
+                  key={String(v)}
+                  type="button"
+                  className={cn('rounded px-2 py-1', pre === v ? 'bg-raised' : 'text-fg2')}
+                  aria-pressed={pre === v}
+                  onClick={() =>
+                    (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
+                      dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
+                    )
+                  }
+                >
+                  {v ? 'Pre' : 'Post'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="divide-line mt-2 flex min-h-0 flex-1 flex-col divide-y">
+            {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
+              <div key={mix} className="flex min-h-0 flex-1 flex-col py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
+                  <ValueBox className="text-xs">{formatDb(c.sends[mix].level)}</ValueBox>
+                </div>
+                <Fader
+                  db={c.sends[mix].level}
+                  onChange={(db) => dispatch({ type: 'send', ch, mix, patch: { level: db } })}
+                  levels={[]}
+                  handle="sm"
+                  label={`Send ${mix}`}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="card flex min-w-0 flex-1 flex-col p-4">
           <Label className="mb-3">
             EQ{' '}
@@ -138,100 +250,88 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             )}
           </div>
         </section>
-
-        <section className="card flex h-fit w-[280px] shrink-0 flex-col p-4">
-          <div className="flex items-center justify-between">
-            <Label>FX-Sends</Label>
-            <div className="border-line flex rounded border p-0.5 text-xs">
-              {[true, false].map((v) => (
-                <button
-                  key={String(v)}
-                  type="button"
-                  className={cn('rounded px-3 py-1', pre === v ? 'bg-raised' : 'text-fg2')}
-                  onClick={() =>
-                    (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
-                      dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
-                    )
-                  }
-                >
-                  {v ? 'Pre' : 'Post'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
-            <div key={mix} className="mt-5">
-              <div className="mb-2 flex justify-between text-sm">
-                <span className="font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
-                <span className="font-mono text-xs">{formatDb(c.sends[mix].level)} dB</span>
-              </div>
-              <Slider
-                pos={1 - dbToPos(c.sends[mix].level)}
-                onPos={(p) => dispatch({ type: 'send', ch, mix, patch: { level: posToDb(1 - p) } })}
-                label={`Send ${mix}`}
-                valueText={`${formatDb(c.sends[mix].level)} dB`}
-              />
-            </div>
-          ))}
-          <p className="text-fg2 mt-5 text-xs">Pre/Post gilt für den ganzen Kanal.</p>
-        </section>
-
-        <section className="card flex w-28 shrink-0 flex-col items-stretch p-2.5">
-          {!fixed && (
-            <Knob
-              label="Pan"
-              size={52}
-              pos={(c.pan + 100) / 200}
-              onPos={(p) =>
-                dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
-              }
-              reset={0.5}
-              valueText={formatPan(c.pan)}
-            />
-          )}
-          <Btn
-            kind={c.phase ? 'on' : 'plain'}
-            className="mt-3 h-8"
-            aria-pressed={c.phase}
-            onClick={() => dispatch({ type: 'channel', ch, patch: { phase: !c.phase } })}
-          >
-            Ø Phase
-          </Btn>
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
-            <Btn
-              kind={c.mute ? 'mute' : 'plain'}
-              className="h-8"
-              aria-pressed={c.mute}
-              onClick={() => dispatch({ type: 'channel', ch, patch: { mute: !c.mute } })}
-            >
-              M
-            </Btn>
-            <Btn
-              kind={c.solo ? 'solo' : 'plain'}
-              className="h-8"
-              aria-pressed={c.solo}
-              onClick={() => dispatch({ type: 'channel', ch, patch: { solo: !c.solo } })}
-            >
-              S
-            </Btn>
-          </div>
-          <Btn
-            kind={c.recSelect ? 'rec' : 'plain'}
-            className="mt-2 h-8"
-            aria-pressed={c.recSelect}
-            onClick={() => dispatch({ type: 'channel', ch, patch: { recSelect: !c.recSelect } })}
-          >
-            Select
-          </Btn>
-          <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(c.fader)}</ValueBox>
-          <Fader
-            db={c.fader}
-            onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
-            levels={fixed ? [meter, meterR] : [meter]}
-            label={`Fader ${c.name}`}
-          />
-        </section>
       </div>
+    </div>
+  )
+}
+
+const COLORS = [
+  '#5aa9f0',
+  '#a98bf0',
+  '#3ecf8e',
+  '#f2667a',
+  '#f2a04b',
+  '#f2d24b',
+  '#4bd6e8',
+  '#8b8f98',
+]
+
+/** Name and colour of a channel; both stay per channel, a stereo partner keeps its own. */
+function EditDialog({
+  name,
+  color,
+  onClose,
+  onSave,
+}: {
+  name: string
+  color: string
+  onClose: () => void
+  onSave: (patch: { name: string; color: string }) => void
+}) {
+  const [draft, setDraft] = useState({ name, color })
+  return (
+    <div
+      className="fixed inset-0 z-30 flex items-center justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <form
+        role="dialog"
+        aria-label="Kanal bearbeiten"
+        className="card bg-surf w-96 p-5"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave({ ...draft, name: draft.name.trim() || name })
+        }}
+      >
+        <h2 className="text-lg font-semibold">Kanal bearbeiten</h2>
+        <label className="mt-4 block">
+          <Label className="mb-1.5">Name</Label>
+          <input
+            autoFocus
+            maxLength={16}
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            className="border-line bg-raised focus:border-fg2 h-10 w-full rounded border px-3 text-base outline-none"
+          />
+        </label>
+        <Label className="mt-4 mb-1.5">Farbe</Label>
+        <div role="radiogroup" aria-label="Farbe" className="flex gap-2">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={draft.color === c}
+              aria-label={c}
+              onClick={() => setDraft({ ...draft, color: c })}
+              className={cn(
+                'size-9 rounded-full ring-offset-2 ring-offset-[#15171d]',
+                draft.color === c && 'ring-fg ring-2',
+              )}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Btn className="h-10 px-4" onClick={onClose}>
+            Abbrechen
+          </Btn>
+          <Btn kind="on" type="submit" className="h-10 px-4">
+            Speichern
+          </Btn>
+        </div>
+      </form>
     </div>
   )
 }

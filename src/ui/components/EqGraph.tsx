@@ -1,6 +1,6 @@
 import { useRef } from 'react'
-import { EQ_GAIN_MAX, type Eq } from '@/lib/mixer'
-import { EQ_HIGH_HZ, EQ_LOW_HZ, eqResponse, LOW_CUT_HZ } from '@/lib/scale'
+import { EQ_GAIN_MAX, GEQ_BANDS, type Eq } from '@/lib/mixer'
+import { EQ_HIGH_HZ, EQ_LOW_HZ, eqResponse, geqResponse, LOW_CUT_HZ } from '@/lib/scale'
 
 const W = 600
 const LOG_MIN = Math.log10(20)
@@ -8,11 +8,11 @@ const LOG_SPAN = Math.log10(20000) - LOG_MIN
 const fx = (f: number) => ((Math.log10(f) - LOG_MIN) / LOG_SPAN) * W
 const xf = (x: number) => 10 ** (LOG_MIN + (x / W) * LOG_SPAN)
 
-function curve(eq: Eq, h: number, range: number) {
+function curve(response: (f: number) => number, h: number, range: number) {
   const gy = (db: number) => h / 2 - (Math.max(-range, Math.min(range, db)) / range) * (h / 2)
   const pts = Array.from({ length: 121 }, (_, i) => {
     const x = (i / 120) * W
-    return `${x.toFixed(1)},${gy(eqResponse(eq, xf(x))).toFixed(1)}`
+    return `${x.toFixed(1)},${gy(response(xf(x))).toFixed(1)}`
   })
   return { line: `M${pts.join(' L')}`, gy }
 }
@@ -40,7 +40,7 @@ export function MiniGeq({ geq }: { geq: number[] }) {
 
 /** Small read-only curve in the channel strip. */
 export function MiniEq({ eq }: { eq: Eq }) {
-  const { line } = curve(eq, 60, 18)
+  const { line } = curve((f) => eqResponse(eq, f), 60, 18)
   return (
     <svg
       viewBox={`0 0 ${W} 60`}
@@ -65,7 +65,7 @@ const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
 /** Large EQ with draggable band points (L, M, H). */
 export function EqGraph({ eq, onChange }: { eq: Eq; onChange: (patch: Partial<Eq>) => void }) {
   const svg = useRef<SVGSVGElement>(null)
-  const { line, gy } = curve(eq, H, EQ_GAIN_MAX)
+  const { line, gy } = curve((f) => eqResponse(eq, f), H, EQ_GAIN_MAX)
   const dragging = useRef<'low' | 'mid' | 'high' | null>(null)
 
   const move = (e: React.PointerEvent) => {
@@ -103,14 +103,77 @@ export function EqGraph({ eq, onChange }: { eq: Eq; onChange: (patch: Partial<Eq
   )
 
   return (
+    <EqFrame
+      svgRef={svg}
+      line={line}
+      gy={gy}
+      on={eq.on}
+      onPointerMove={move}
+      onPointerUp={() => (dragging.current = null)}
+    >
+      {eq.lowCut && (
+        <g>
+          <circle cx={fx(LOW_CUT_HZ)} cy={gy(eqResponse(eq, LOW_CUT_HZ))} r="11" fill="#6aaef5" />
+          <text
+            x={fx(LOW_CUT_HZ)}
+            y={gy(eqResponse(eq, LOW_CUT_HZ)) + 3.5}
+            textAnchor="middle"
+            fontSize="9"
+            fontWeight="700"
+            className="fill-canvas font-mono"
+          >
+            LC
+          </text>
+        </g>
+      )}
+      {point('low', EQ_LOW_HZ, eq.low, 'L')}
+      {point('mid', eq.midFreq, eq.midGain, 'M')}
+      {point('high', EQ_HIGH_HZ, eq.high, 'H')}
+    </EqFrame>
+  )
+}
+
+/** Master graphic EQ curve, read-only (the band faders below it do the editing). */
+export function GeqGraph({ geq }: { geq: number[] }) {
+  const { line, gy } = curve((f) => geqResponse(geq, f), 140, EQ_GAIN_MAX)
+  return (
+    <EqFrame line={line} gy={gy} on h={140}>
+      {GEQ_BANDS.map((f, i) => (
+        <circle key={f} cx={fx(f)} cy={gy(geq[i])} r="4" fill="#6aaef5" />
+      ))}
+    </EqFrame>
+  )
+}
+
+/** Grid, dB lines, filled curve and frequency labels shared by both EQ pictures. */
+function EqFrame({
+  line,
+  gy,
+  on,
+  h = H,
+  svgRef,
+  onPointerMove,
+  onPointerUp,
+  children,
+}: {
+  line: string
+  gy: (db: number) => number
+  on: boolean
+  h?: number
+  svgRef?: React.RefObject<SVGSVGElement | null>
+  onPointerMove?: (e: React.PointerEvent) => void
+  onPointerUp?: () => void
+  children: React.ReactNode
+}) {
+  return (
     <div>
       <svg
-        ref={svg}
-        viewBox={`0 0 ${W} ${H}`}
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${h}`}
         className="bg-raised/40 w-full touch-none overflow-visible rounded"
-        onPointerMove={move}
-        onPointerUp={() => (dragging.current = null)}
-        onPointerCancel={() => (dragging.current = null)}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         <defs>
           <linearGradient id="eqfill" x1="0" y1="0" x2="0" y2="1">
@@ -119,7 +182,7 @@ export function EqGraph({ eq, onChange }: { eq: Eq; onChange: (patch: Partial<Eq
           </linearGradient>
         </defs>
         {FREQ_LABELS.map((f) => (
-          <line key={f} x1={fx(f)} y1="0" x2={fx(f)} y2={H} stroke="#1d2028" />
+          <line key={f} x1={fx(f)} y1="0" x2={fx(f)} y2={h} stroke="#1d2028" />
         ))}
         {[12, 0, -12].map((db) => (
           <g key={db}>
@@ -136,26 +199,9 @@ export function EqGraph({ eq, onChange }: { eq: Eq; onChange: (patch: Partial<Eq
             </text>
           </g>
         ))}
-        <path d={`${line} L${W},${H} L0,${H} Z`} fill="url(#eqfill)" opacity={eq.on ? 1 : 0.3} />
-        <path d={line} fill="none" stroke={eq.on ? '#6aaef5' : '#707688'} strokeWidth="2" />
-        {eq.lowCut && (
-          <g>
-            <circle cx={fx(LOW_CUT_HZ)} cy={gy(eqResponse(eq, LOW_CUT_HZ))} r="11" fill="#6aaef5" />
-            <text
-              x={fx(LOW_CUT_HZ)}
-              y={gy(eqResponse(eq, LOW_CUT_HZ)) + 3.5}
-              textAnchor="middle"
-              fontSize="9"
-              fontWeight="700"
-              className="fill-canvas font-mono"
-            >
-              LC
-            </text>
-          </g>
-        )}
-        {point('low', EQ_LOW_HZ, eq.low, 'L')}
-        {point('mid', eq.midFreq, eq.midGain, 'M')}
-        {point('high', EQ_HIGH_HZ, eq.high, 'H')}
+        <path d={`${line} L${W},${h} L0,${h} Z`} fill="url(#eqfill)" opacity={on ? 1 : 0.3} />
+        <path d={line} fill="none" stroke={on ? '#6aaef5' : '#707688'} strokeWidth="2" />
+        {children}
       </svg>
       <div className="text-fg3 relative mt-1 h-4 font-mono text-[10px]">
         {FREQ_LABELS.map((f) => (
