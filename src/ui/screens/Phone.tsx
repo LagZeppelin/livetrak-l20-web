@@ -3,7 +3,7 @@ import type { MonitorMixId } from '@/lib/mixer'
 import { dbToPos, formatDb, posToDb } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, HMeter, HSlider, Icon, Label, StatusPill, ValueBox } from '../components/controls'
+import { Btn, HMeter, Slider, Icon, Label, StatusPill, ValueBox } from '../components/controls'
 import { channelGroups, mixLevel, sendLevel, type ChannelGroup } from '../mixView'
 
 const toPos = (db: number) => 1 - dbToPos(db)
@@ -102,8 +102,8 @@ export function Phone({ mix }: { mix: MonitorMixId }) {
           <Label className="text-xs">Mix {mix} Output</Label>
           <ValueBox className="text-base">{formatDb(bus.fader)}</ValueBox>
         </div>
-        <HSlider
-          big
+        <Slider
+          handle="lg"
           pos={toPos(bus.fader)}
           onPos={(p) => dispatch({ type: 'bus', mix, patch: { fader: posToDb(1 - p) } })}
           mark={ZERO}
@@ -145,8 +145,8 @@ function SendRow({ g, mix }: { g: ChannelGroup; mix: MonitorMixId }) {
         <ValueBox className="ml-auto text-base">{formatDb(db)}</ValueBox>
       </div>
       {/* the store mirrors the send onto the stereo partner */}
-      <HSlider
-        big
+      <Slider
+        handle="lg"
         pos={toPos(db)}
         onPos={(p) =>
           dispatch({ type: 'send', ch: g.ids[0], mix, patch: { level: posToDb(1 - p) } })

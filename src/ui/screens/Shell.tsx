@@ -3,18 +3,21 @@ import { MONITOR_MIXES, type RecorderState } from '@/lib/mixer'
 import { formatTime } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Icon, Label, StatusPill } from '../components/controls'
-import type { View } from '../mixView'
+import { Btn, Icon, Label, Meter, StatusPill } from '../components/controls'
+import type { Screen, View } from '../mixView'
 
 export function Shell({
-  mix,
-  onMix,
+  screen,
+  onScreen,
   overview,
+  aside,
   children,
 }: {
-  mix: View
-  onMix: (mix: View) => void
+  screen: Screen
+  onScreen: (screen: Screen) => void
   overview: ReactNode
+  /** fixed right rail (master + FX or the monitor mix output) under the screen dropdown, full height like the navigation */
+  aside: ReactNode
   children: ReactNode
 }) {
   return (
@@ -26,9 +29,9 @@ export function Shell({
           {(['main', ...MONITOR_MIXES] as View[]).map((m) => (
             <Btn
               key={m}
-              kind={m === mix ? 'on' : 'plain'}
-              className={cn('h-12 text-[15px]', m === mix && 'font-semibold')}
-              onClick={() => onMix(m)}
+              kind={m === screen ? 'on' : 'plain'}
+              className={cn('h-12 text-[15px]', m === screen && 'font-semibold')}
+              onClick={() => onScreen(m)}
             >
               {m === 'main' ? 'Main' : m}
             </Btn>
@@ -36,7 +39,7 @@ export function Shell({
         </div>
         <Label className="mt-auto mb-2">Phones</Label>
         <a
-          href={`?phone=${mix === 'main' ? 'A' : mix}`}
+          href={`?phone=${MONITOR_MIXES.includes(screen as never) ? screen : 'A'}`}
           target="_blank"
           rel="noreferrer"
           aria-label="Handy-Ansicht öffnen"
@@ -50,9 +53,30 @@ export function Shell({
         <main className="min-h-0 flex-1 p-4 pb-3">{children}</main>
         {overview}
       </div>
+      <aside className="border-line bg-sidebar/85 flex shrink-0 flex-col border-l py-3">
+        <label className="border-line relative mx-3 mb-3 flex h-10 items-center rounded border bg-[rgb(22_25_32/0.55)] px-3.5 text-lg font-semibold">
+          {SCREEN_LABEL(screen)}
+          <Icon name="caret" className="text-fg2 ml-auto size-4" />
+          <select
+            aria-label="Ansicht wählen"
+            className="absolute inset-0 opacity-0"
+            value={screen}
+            onChange={(e) => onScreen(e.target.value as Screen)}
+          >
+            {(['main', 'master', ...MONITOR_MIXES] as Screen[]).map((s) => (
+              <option key={s} value={s}>
+                {SCREEN_LABEL(s)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="divide-line flex min-h-0 flex-1 divide-x">{aside}</div>
+      </aside>
     </div>
   )
 }
+
+const SCREEN_LABEL = (s: Screen) => (s === 'main' ? 'Main' : s === 'master' ? 'Master' : `Mix ${s}`)
 
 const REC_LABEL: Record<RecorderState, string> = {
   stopped: 'STOP',
@@ -168,17 +192,15 @@ export function Overview({
   highlight,
   onOpen,
   onScroll,
-  fx,
 }: {
   highlight: [number, number]
   onOpen: (ch: number) => void
   onScroll: (dxChannels: number) => void
-  fx: boolean
 }) {
   const meters = useMixerStore((s) => s.meters)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
-  const items = Array.from({ length: 20 }, (_, i) => i + 1).concat(fx ? [21, 22] : [])
-  const STEP = 37
+  const items = Array.from({ length: 20 }, (_, i) => i + 1)
+  const STEP = 33
 
   return (
     <div
@@ -215,27 +237,24 @@ export function Overview({
         />
         {items.map((ch) => {
           const on = ch >= highlight[0] && ch <= highlight[1]
-          const level = ch <= 20 ? meters[ch - 1] : undefined
+          const level = meters[ch - 1]
           return (
             <div
               key={ch}
               data-ch={ch}
-              className="relative flex w-[37px] flex-col items-center py-2"
+              className="relative flex w-[33px] flex-col items-center py-1.5"
             >
               <span className={cn('font-mono text-[11px]', on ? 'font-medium' : 'text-fg2')}>
-                {ch <= 20 ? ch : `FX${ch - 20}`}
+                {ch}
               </span>
-              <div className="bg-track mt-1.5 h-1 w-[22px] overflow-hidden rounded-sm">
-                <div
-                  className="bg-good h-full"
-                  style={{ width: `${Math.max(0, ((level ?? -60) + 60) / 60) * 100}%` }}
-                />
+              <div className="mt-1 flex h-6">
+                <Meter level={level} />
               </div>
             </div>
           )
         })}
       </div>
-      <div className="ml-auto text-right text-xs leading-[18px]">
+      <div className="ml-auto text-right text-[11px] leading-[18px] whitespace-nowrap">
         <div className="text-fg2">Tippen: Kanal öffnen</div>
         <div className="text-fg3">Halten und ziehen: scrollen</div>
       </div>

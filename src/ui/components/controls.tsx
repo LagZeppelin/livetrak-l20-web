@@ -33,26 +33,38 @@ function useDrag(pos: number, onPos: (pos: number) => void, axis: 'x' | 'y', spa
   }
 }
 
-/** Vertical meter, dBFS on the fader taper so it lines up with the scale. */
-export function Meter({ level, className }: { level: number | undefined; className?: string }) {
+// Meters light up only to 0 dBFS; the +dB part of the fader scale stays track grey.
+const ZERO = dbToPos(0)
+const covered = (level: number | undefined) =>
+  Math.max(0, (dbToPos(level ?? -99) - ZERO) / (1 - ZERO))
+
+/** Vertical meter on the fader taper so it lines up with the scale. */
+export function Meter({ level }: { level: number | undefined }) {
   return (
-    <div className={cn('meter-fill relative w-1.5 overflow-hidden rounded-full', className)}>
-      <div
-        className="bg-track absolute inset-x-0 top-0"
-        style={{ height: `${dbToPos(level ?? -99) * 100}%` }}
-      />
+    <div className="bg-track relative w-1.5 overflow-hidden rounded-full">
+      <div className="meter-fill absolute inset-x-0 bottom-0" style={{ top: `${ZERO * 100}%` }}>
+        <div
+          className="bg-track absolute inset-x-0 top-0"
+          style={{ height: `${covered(level) * 100}%` }}
+        />
+      </div>
     </div>
   )
 }
 
-/** Horizontal meter for the phone rows. */
+/** Horizontal meter for the phone rows, same zero point as the horizontal faders. */
 export function HMeter({ level }: { level: number | undefined }) {
   return (
-    <div className="relative h-1 overflow-hidden rounded-full bg-[linear-gradient(to_right,#3ecf8e_45%,#f2b44b_70%,#ff2a2a)]">
+    <div className="bg-track relative h-1 overflow-hidden rounded-full">
       <div
-        className="bg-track absolute inset-y-0 right-0"
-        style={{ width: `${dbToPos(level ?? -99) * 100}%` }}
-      />
+        className="absolute inset-y-0 left-0 bg-[linear-gradient(to_right,#3ecf8e_45%,#f2b44b_75%,#ff2a2a)]"
+        style={{ width: `${(1 - ZERO) * 100}%` }}
+      >
+        <div
+          className="bg-track absolute inset-y-0 right-0"
+          style={{ width: `${covered(level) * 100}%` }}
+        />
+      </div>
     </div>
   )
 }
@@ -63,37 +75,29 @@ export function Fader({
   onChange,
   levels,
   label,
+  handle = 'lg',
 }: {
   db: number
   onChange: (db: number) => void
   levels: (number | undefined)[]
   label: string
+  handle?: 'sm' | 'lg'
 }) {
-  const drag = useDrag(dbToPos(db), (p) => onChange(posToDb(p)), 'y')
   return (
     <div className="relative flex min-h-0 flex-1 justify-between px-1 py-3.5">
       <div
         className="border-fg3/40 absolute inset-x-0 border-t border-dashed"
         style={{ top: `calc(14px + ${dbToPos(0)} * (100% - 28px))` }}
       />
-      <div
-        {...drag}
-        role="slider"
-        aria-label={label}
-        aria-valuemin={-60}
-        aria-valuemax={10}
-        aria-valuenow={db}
-        aria-valuetext={`${formatDb(db)} dB`}
-        className="absolute inset-y-0 left-0 z-10 w-1/2 cursor-grab"
+      <Slider
+        axis="y"
+        handle={handle}
+        pos={dbToPos(db)}
+        onPos={(p) => onChange(posToDb(p))}
+        label={label}
+        valueText={`${formatDb(db)} dB`}
       />
-      <div className="relative w-7">
-        <div className="bg-track absolute inset-y-0 left-1/2 w-[7px] -translate-x-1/2 rounded-full" />
-        <div
-          className="bg-thumb absolute left-1/2 size-7 -translate-1/2 rounded-full shadow-[0_2px_4px_rgb(0_0_0/0.6)]"
-          style={{ top: `${dbToPos(db) * 100}%` }}
-        />
-      </div>
-      <div className="text-fg3 relative flex-1 font-mono text-[10px]">
+      <div className="text-fg3 relative min-w-7 flex-1 font-mono text-[10px]">
         {SCALE_MARKS.map((m) => (
           <span
             key={m}
@@ -116,55 +120,71 @@ export function Fader({
   )
 }
 
-/** Horizontal slider, pos 0…1. `origin` 0.5 fills from the centre (pan). */
-export function HSlider({
+/**
+ * The one slider for faders, sends and pan: same track, fill and thumb everywhere.
+ * pos 0…1 (y: 0 = top). Fill runs from `origin` (default: bottom/left; 0.5 = centre for pan).
+ * `handle` lg = big thumb for channel and mix faders.
+ */
+export function Slider({
   pos,
   onPos,
-  origin = 0,
+  axis = 'x',
+  origin = axis === 'y' ? 1 : 0,
   mark,
+  handle = 'sm',
   label,
   valueText,
-  big,
 }: {
   pos: number
   onPos: (pos: number) => void
+  axis?: 'x' | 'y'
   origin?: number
   mark?: number
+  handle?: 'sm' | 'lg'
   label: string
   valueText: string
-  big?: boolean
 }) {
-  const drag = useDrag(pos, onPos, 'x')
-  const thumb = big ? 'size-7' : 'size-3.5'
+  const drag = useDrag(pos, onPos, axis)
+  const y = axis === 'y'
+  const at = (p: number) => ({ [y ? 'top' : 'left']: `${p * 100}%` })
   return (
     <div
       {...drag}
       role="slider"
       aria-label={label}
+      aria-orientation={y ? 'vertical' : 'horizontal'}
       aria-valuetext={valueText}
-      aria-valuenow={Math.round(pos * 100)}
-      className={cn('relative cursor-grab', big ? 'h-12' : 'h-4')}
+      aria-valuenow={Math.round((y ? 1 - pos : pos) * 100)}
+      className={cn('relative shrink-0 cursor-grab', y ? 'w-7' : handle === 'lg' ? 'h-12' : 'h-6')}
     >
-      <div className="bg-track absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" />
       <div
-        className="bg-fg2 absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
+        className={cn(
+          'bg-track absolute rounded-full',
+          y
+            ? 'inset-y-0 left-1/2 w-1.5 -translate-x-1/2'
+            : 'inset-x-0 top-1/2 h-1.5 -translate-y-1/2',
+        )}
+      />
+      <div
+        className={cn(
+          'bg-fg2 absolute rounded-full',
+          y ? 'left-1/2 w-1.5 -translate-x-1/2' : 'top-1/2 h-1.5 -translate-y-1/2',
+        )}
         style={{
-          left: `${Math.min(pos, origin) * 100}%`,
-          width: `${Math.abs(pos - origin) * 100}%`,
+          ...at(Math.min(pos, origin)),
+          [y ? 'height' : 'width']: `${Math.abs(pos - origin) * 100}%`,
         }}
       />
-      {mark !== undefined && (
-        <div
-          className="bg-fg3 absolute top-0 h-2 w-px"
-          style={{ left: `${mark * 100}%`, top: big ? 4 : 0 }}
-        />
+      {mark !== undefined && !y && (
+        <div className="bg-fg3 absolute top-[calc(50%-14px)] h-2 w-px" style={at(mark)} />
       )}
       <div
         className={cn(
-          'bg-thumb absolute top-1/2 -translate-1/2 rounded-full shadow-[0_2px_4px_rgb(0_0_0/0.6)]',
-          thumb,
+          'bg-thumb absolute -translate-1/2 rounded-full shadow-[0_2px_4px_rgb(0_0_0/0.6)]',
+          y ? 'left-1/2' : 'top-1/2',
+          handle === 'lg' ? 'size-7' : 'size-4',
         )}
-        style={{ left: `${pos * 100}%` }}
+        style={at(pos)}
       />
     </div>
   )
@@ -339,5 +359,6 @@ const ICONS = {
   back: <path d="M19 12H5m6-6-6 6 6 6" />,
   caret: <path d="m7 10 5 5 5-5" />,
   check: <path d="m5 12 5 5 9-10" />,
+  edit: <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />,
   sliders: <path d="M4 7h10m4 0h2M4 17h4m4 0h8M16 5v4M10 15v4" />,
 }

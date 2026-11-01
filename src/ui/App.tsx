@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
 import { useMixerStore } from '@/state/mixerStore'
 import { ChannelDetail } from './screens/ChannelDetail'
-import { Console, STRIP_W } from './screens/Console'
+import { MasterDetail } from './screens/MasterDetail'
+import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
 import { Phone } from './screens/Phone'
-import type { View } from './mixView'
+import { isFixedStereo, type View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
 
 // shortcut: the phone view is picked by URL (?phone=C); the Pi will hand out the mix per phone later
@@ -20,7 +21,7 @@ export default function App() {
 
 function Ipad() {
   const [mix, setMix] = useState<View>('main')
-  const [detail, setDetail] = useState<number | null>(null)
+  const [detail, setDetail] = useState<number | 'master' | null>(null)
   const [visible, setVisible] = useState<[number, number]>([1, 8])
 
   const scrollTo = (ch: number) =>
@@ -28,21 +29,33 @@ function Ipad() {
 
   return (
     <Shell
-      mix={mix}
-      onMix={(m) => {
-        setMix(m)
+      screen={detail === 'master' ? 'master' : mix}
+      onScreen={(s) => {
+        if (s === 'master') return setDetail('master')
+        setMix(s)
         setDetail(null)
       }}
+      aside={
+        mix === 'main' || detail === 'master' ? (
+          <>
+            <FxReturns />
+            <MasterStrip onOpenEq={() => setDetail('master')} />
+          </>
+        ) : (
+          <MonitorPanel mix={mix} />
+        )
+      }
       overview={
         <Overview
-          fx={mix === 'main' && detail === null}
-          highlight={detail ? [detail, detail] : visible}
-          onOpen={(ch) => (ch > 20 ? scrollTo(ch) : setDetail(ch))}
+          highlight={typeof detail === 'number' ? [detail, detail] : visible}
+          onOpen={(ch) => setDetail(isFixedStereo(ch - 1) ? ch - 1 : ch)}
           onScroll={(dx) => document.getElementById('strips')?.scrollBy({ left: dx * STRIP_W })}
         />
       }
     >
-      {detail ? (
+      {detail === 'master' ? (
+        <MasterDetail onBack={() => setDetail(null)} />
+      ) : detail ? (
         <ChannelDetail
           ch={detail}
           onBack={() => {

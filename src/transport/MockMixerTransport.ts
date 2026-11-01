@@ -91,13 +91,18 @@ export class MockMixerTransport implements IMixerTransport {
   }
 
   private tick() {
-    const { channels, main, recorder } = this.mixer
+    const { channels, main, fx, recorder } = this.mixer
     // noise around fader level; muted channels and a muted main read silent
     const level = (fader: number, mute: boolean) =>
       mute ? FADER_MIN : Math.min(0, fader - 12 + Math.random() * 10)
     const levels = channels.map((c) => level(c.fader, c.mute))
     const sum = Math.max(...levels)
     levels.push(level(sum + main.fader, main.mute), level(sum + main.fader, main.mute))
+    for (const id of ['fx1', 'fx2'] as const) {
+      // loudest channel send into the effect, then the return fader
+      const peak = Math.max(...channels.map((c, i) => levels[i] + c.sends[id].level))
+      levels.push(level(peak + fx[id].fader, fx[id].mute), level(peak + fx[id].fader, fx[id].mute))
+    }
     this.emit({ type: 'meters', levels })
 
     this.ticks++

@@ -13,6 +13,9 @@ export const GEQ_BANDS = [
   25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000,
 ] as const
 export const SCENE_SLOTS = 9
+/** Effect types for the FX1/FX2 dropdown; `FxBus.effect` indexes this list. */
+// shortcut: placeholder names; replace with the L-20's real effect list once we have it from the manual or app
+export const EFFECTS = Array.from({ length: 20 }, (_, i) => `Effekt ${i + 1}`)
 /** Left channel of the pairs the hardware wires as stereo inputs (17/18, 19/20); never unlinked. */
 export const FIXED_STEREO = [17, 19] as const
 

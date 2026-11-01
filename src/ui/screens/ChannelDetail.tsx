@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { EQ_GAIN_MAX, type Eq, type FxMixId } from '@/lib/mixer'
-import { dbToPos, formatDb, formatPan, posToDb } from '@/lib/scale'
+import { formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Fader, HSlider, Icon, Knob, Label, ValueBox } from '../components/controls'
+import { Btn, Fader, Icon, Slider, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
-import { channelNo, formatHz, linkCommand } from '../mixView'
+import { channelNo, formatHz, isFixedStereo, linkCommand } from '../mixView'
 
 const FLAT: Partial<Eq> = { lowCut: false, low: 0, midGain: 0, midFreq: 1000, high: 0 }
 const gainPos = (db: number) => (db + EQ_GAIN_MAX) / (2 * EQ_GAIN_MAX)
@@ -17,32 +18,53 @@ const posFreq = (p: number) => Math.round((100 * 80 ** p) / 10) * 10
 export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }) {
   const mixer = useMixerStore((s) => s.mixer)
   const meter = useMixerStore((s) => s.meters[ch - 1])
+  const meterR = useMixerStore((s) => s.meters[ch])
   const dispatch = useMixerStore((s) => s.dispatch)
   const c = mixer.channels[ch - 1]
   const partner = c.linkedWith ? mixer.channels[c.linkedWith - 1] : null
   const link = linkCommand(mixer, ch)
   const eq = (patch: Partial<Eq>) => dispatch({ type: 'eq', ch, patch })
   const pre = c.sends.fx1.pre
+  const fixed = isFixedStereo(ch)
+  const [editing, setEditing] = useState(false)
 
   return (
     <div className="flex h-full flex-col gap-4">
+      {editing && (
+        <EditDialog
+          name={c.name}
+          color={c.color}
+          onClose={() => setEditing(false)}
+          onSave={(patch) => {
+            dispatch({ type: 'channel', ch, patch })
+            setEditing(false)
+          }}
+        />
+      )}
       <header className="flex items-center gap-4">
         <Btn className="size-10" aria-label="Zurück" onClick={onBack}>
           <Icon name="back" className="size-5" />
         </Btn>
         <div className="h-7 w-1 rounded-full" style={{ background: c.color }} />
         <h1 className="flex items-baseline gap-2 text-xl font-semibold">
-          <span className="text-fg3 font-mono text-base font-normal">{channelNo(ch)}</span>
+          <span className="text-fg3 font-mono text-base font-normal">
+            {fixed ? `${ch}·${ch + 1}` : channelNo(ch)}
+          </span>
           {c.name}
         </h1>
-        {partner && (
+        {partner && !fixed && (
           <span className="text-fg2 text-sm">
             Stereo mit {channelNo(partner.id)} {partner.name}
           </span>
         )}
+        {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
+        <Btn className="ml-auto h-9 px-4" onClick={() => setEditing(true)}>
+          <Icon name="edit" />
+          Bearbeiten
+        </Btn>
         <Btn
           kind={partner ? 'on' : 'plain'}
-          className="ml-auto h-9 px-4"
+          className={cn('h-9 px-4', fixed && 'hidden')}
           disabled={!link}
           onClick={() => link && dispatch(link)}
         >
@@ -74,6 +96,106 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
       </header>
 
       <div className="flex min-h-0 flex-1 gap-4">
+        <section className="card flex w-28 shrink-0 flex-col items-stretch p-2.5">
+          <Btn
+            kind={c.phase ? 'on' : 'plain'}
+            className="h-8"
+            aria-pressed={c.phase}
+            onClick={() => dispatch({ type: 'channel', ch, patch: { phase: !c.phase } })}
+          >
+            Ø Phase
+          </Btn>
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <Btn
+              kind={c.mute ? 'mute' : 'plain'}
+              className="h-8"
+              aria-pressed={c.mute}
+              onClick={() => dispatch({ type: 'channel', ch, patch: { mute: !c.mute } })}
+            >
+              M
+            </Btn>
+            <Btn
+              kind={c.solo ? 'solo' : 'plain'}
+              className="h-8"
+              aria-pressed={c.solo}
+              onClick={() => dispatch({ type: 'channel', ch, patch: { solo: !c.solo } })}
+            >
+              S
+            </Btn>
+          </div>
+          <Btn
+            kind={c.recSelect ? 'rec' : 'plain'}
+            className="mt-2 h-8"
+            aria-pressed={c.recSelect}
+            onClick={() => dispatch({ type: 'channel', ch, patch: { recSelect: !c.recSelect } })}
+          >
+            Select
+          </Btn>
+          <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(c.fader)}</ValueBox>
+          <Fader
+            db={c.fader}
+            onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
+            levels={fixed ? [meter, meterR] : [meter]}
+            label={`Fader ${c.name}`}
+          />
+          {!fixed && (
+            <div className="border-line mt-2 border-t pt-2">
+              <div className="text-fg3 flex justify-between font-mono text-[10px]">
+                <span>PAN</span>
+                <span className="text-fg">{formatPan(c.pan)}</span>
+              </div>
+              <Slider
+                pos={(c.pan + 100) / 200}
+                onPos={(p) =>
+                  dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
+                }
+                origin={0.5}
+                label={`Pan ${c.name}`}
+                valueText={formatPan(c.pan)}
+              />
+            </div>
+          )}
+        </section>
+        <section className="card flex w-fit shrink-0 flex-col p-3">
+          <div
+            aria-label="FX-Sends Pre/Post"
+            className="border-line grid grid-cols-2 rounded border p-0.5 text-xs"
+          >
+            {[true, false].map((v) => (
+              <button
+                key={String(v)}
+                type="button"
+                className={cn('rounded py-1', pre === v ? 'bg-raised' : 'text-fg2')}
+                aria-pressed={pre === v}
+                onClick={() =>
+                  (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
+                    dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
+                  )
+                }
+              >
+                {v ? 'Pre' : 'Post'}
+              </button>
+            ))}
+          </div>
+          <div className="divide-line mt-2 flex min-h-0 flex-1 flex-col divide-y">
+            {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
+              <div key={mix} className="flex min-h-0 flex-1 flex-col py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
+                  <ValueBox className="text-xs">{formatDb(c.sends[mix].level)}</ValueBox>
+                </div>
+                <Fader
+                  db={c.sends[mix].level}
+                  onChange={(db) => dispatch({ type: 'send', ch, mix, patch: { level: db } })}
+                  levels={[]}
+                  handle="sm"
+                  label={`Send ${mix}`}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="card flex min-w-0 flex-1 flex-col p-4">
           <Label className="mb-3">
             EQ{' '}
@@ -126,105 +248,95 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </div>
           <div className="border-line text-fg2 mt-auto space-y-1.5 border-t pt-4 text-xs">
             <p>Punkte in der Kurve ziehen oder Regler drehen. Doppeltippen setzt zurück.</p>
-            {partner && (
+            {partner && !isFixedStereo(ch) && (
               <p>
                 Bei Stereo-Link gilt alles auch für Kanal {partner.id}, der Pan wird gespiegelt.
               </p>
             )}
           </div>
         </section>
-
-        <section className="card flex h-fit w-[340px] shrink-0 flex-col p-4">
-          <div className="flex items-center justify-between">
-            <Label>FX-Sends</Label>
-            <div className="border-line flex rounded border p-0.5 text-xs">
-              {[true, false].map((v) => (
-                <button
-                  key={String(v)}
-                  type="button"
-                  className={cn('rounded px-3 py-1', pre === v ? 'bg-raised' : 'text-fg2')}
-                  onClick={() =>
-                    (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
-                      dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
-                    )
-                  }
-                >
-                  {v ? 'Pre' : 'Post'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
-            <div key={mix} className="mt-5">
-              <div className="mb-2 flex justify-between text-sm">
-                <span className="font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
-                <span className="font-mono text-xs">{formatDb(c.sends[mix].level)} dB</span>
-              </div>
-              <HSlider
-                pos={1 - dbToPos(c.sends[mix].level)}
-                onPos={(p) => dispatch({ type: 'send', ch, mix, patch: { level: posToDb(1 - p) } })}
-                label={`Send ${mix}`}
-                valueText={`${formatDb(c.sends[mix].level)} dB`}
-              />
-            </div>
-          ))}
-          <p className="text-fg2 mt-5 text-xs">Pre/Post gilt für den ganzen Kanal.</p>
-        </section>
-
-        <section className="card flex w-28 shrink-0 flex-col items-stretch p-2.5">
-          <Knob
-            label="Pan"
-            size={52}
-            pos={(c.pan + 100) / 200}
-            onPos={(p) =>
-              dispatch({ type: 'channel', ch, patch: { pan: Math.round(p * 200 - 100) } })
-            }
-            reset={0.5}
-            valueText={formatPan(c.pan)}
-          />
-          <Btn
-            kind={c.phase ? 'on' : 'plain'}
-            className="mt-3 h-8"
-            aria-pressed={c.phase}
-            onClick={() => dispatch({ type: 'channel', ch, patch: { phase: !c.phase } })}
-          >
-            Ø Phase
-          </Btn>
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
-            <Btn
-              kind={c.mute ? 'mute' : 'plain'}
-              className="h-8"
-              aria-pressed={c.mute}
-              onClick={() => dispatch({ type: 'channel', ch, patch: { mute: !c.mute } })}
-            >
-              M
-            </Btn>
-            <Btn
-              kind={c.solo ? 'solo' : 'plain'}
-              className="h-8"
-              aria-pressed={c.solo}
-              onClick={() => dispatch({ type: 'channel', ch, patch: { solo: !c.solo } })}
-            >
-              S
-            </Btn>
-          </div>
-          <Btn
-            kind={c.recSelect ? 'rec' : 'plain'}
-            className="mt-2 h-8"
-            aria-pressed={c.recSelect}
-            onClick={() => dispatch({ type: 'channel', ch, patch: { recSelect: !c.recSelect } })}
-          >
-            Select
-          </Btn>
-          <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(c.fader)}</ValueBox>
-          <Fader
-            db={c.fader}
-            onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
-            levels={[meter]}
-            label={`Fader ${c.name}`}
-          />
-        </section>
       </div>
+    </div>
+  )
+}
+
+const COLORS = [
+  '#5aa9f0',
+  '#a98bf0',
+  '#3ecf8e',
+  '#f2667a',
+  '#f2a04b',
+  '#f2d24b',
+  '#4bd6e8',
+  '#8b8f98',
+]
+
+/** Name and colour of a channel; both stay per channel, a stereo partner keeps its own. */
+function EditDialog({
+  name,
+  color,
+  onClose,
+  onSave,
+}: {
+  name: string
+  color: string
+  onClose: () => void
+  onSave: (patch: { name: string; color: string }) => void
+}) {
+  const [draft, setDraft] = useState({ name, color })
+  return (
+    <div
+      className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <form
+        role="dialog"
+        aria-label="Kanal bearbeiten"
+        className="bg-surf w-96 rounded-xl border border-white/12 p-5 shadow-[0_24px_64px_rgb(0_0_0/0.7)]"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave({ ...draft, name: draft.name.trim() || name })
+        }}
+      >
+        <h2 className="text-lg font-semibold">Kanal bearbeiten</h2>
+        <label className="mt-4 block">
+          <Label className="mb-1.5">Name</Label>
+          <input
+            autoFocus
+            maxLength={16}
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            className="border-line bg-raised focus:border-fg2 h-10 w-full rounded border px-3 text-base outline-none"
+          />
+        </label>
+        <Label className="mt-4 mb-1.5">Farbe</Label>
+        <div role="radiogroup" aria-label="Farbe" className="flex gap-2">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={draft.color === c}
+              aria-label={c}
+              onClick={() => setDraft({ ...draft, color: c })}
+              className={cn(
+                'size-9 rounded-full ring-offset-2 ring-offset-[#15171d]',
+                draft.color === c && 'ring-fg ring-2',
+              )}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Btn className="h-10 px-4" onClick={onClose}>
+            Abbrechen
+          </Btn>
+          <Btn kind="on" type="submit" className="h-10 px-4">
+            Speichern
+          </Btn>
+        </div>
+      </form>
     </div>
   )
 }
