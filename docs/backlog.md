@@ -17,9 +17,10 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 
 ## Phase 2 – UI
 
-6. Kanal-Übersicht (iPad)
-7. Kanal-Detail mit EQ-Kurve (SVG)
-8. Musiker-Ansicht: eigener Aux-Mix, kein Zugriff auf FOH
+6. ✅ Kanal-Übersicht (iPad): Main-Mix mit FX-Returns und Master, Monitor-Mix A–F mit Pre/Post
+7. ✅ Kanal-Detail mit EQ-Kurve (SVG), Low Cut, FX-Sends, Pan, Phase
+8. ✅ Musiker-Ansicht (`?phone=C`): eigener Mix, Kanalauswahl, Stereo-Paare als eine Zeile
+   8a. Offen: Master-GEQ (15 Bänder), Effekt-Auswahl FX1/2, Szenen benennen, Phones-Anzeige (kommt mit dem Pi)
 
 ## Phase 3 – Echte Hardware
 
