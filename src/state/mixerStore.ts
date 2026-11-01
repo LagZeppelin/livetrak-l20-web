@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { applyCommand, createMixer, type Mixer, type MixerCommand } from '@/lib/mixer'
 import { MockMixerTransport } from '@/transport/MockMixerTransport'
 import type { ConnectionStatus, IMixerTransport } from '@/transport/types'
@@ -31,39 +32,45 @@ export function partnerCommand(mixer: Mixer, cmd: MixerCommand): MixerCommand | 
   return Object.keys(patch).length ? { type: 'channel', ch: partner, patch } : null
 }
 
-export const useMixerStore = create<MixerState>()((set, get) => ({
-  status: 'disconnected',
-  mixer: createMixer(),
-  meters: [],
-  visibleChannels: [],
-  connect: async () => {
-    set({ status: 'connecting' })
-    try {
-      await transport.connect()
-      set({ status: 'connected' })
-    } catch (error) {
-      set({ status: 'disconnected' })
-      throw error
-    }
-  },
-  disconnect: async () => {
-    await transport.disconnect()
-    set({ status: 'disconnected', meters: [] })
-  },
-  dispatch: (command) => {
-    const partner = partnerCommand(get().mixer, command)
-    for (const cmd of partner ? [command, partner] : [command]) {
-      set((s) => ({ mixer: applyCommand(s.mixer, cmd) }))
-      transport.send(cmd)
-    }
-  },
-  toggleVisible: (ch) =>
-    set((s) => ({
-      visibleChannels: s.visibleChannels.includes(ch)
-        ? s.visibleChannels.filter((c) => c !== ch)
-        : [...s.visibleChannels, ch].sort((a, b) => a - b),
-    })),
-}))
+export const useMixerStore = create<MixerState>()(
+  persist(
+    (set, get) => ({
+      status: 'disconnected',
+      mixer: createMixer(),
+      meters: [],
+      visibleChannels: [],
+      connect: async () => {
+        set({ status: 'connecting' })
+        try {
+          await transport.connect()
+          set({ status: 'connected' })
+        } catch (error) {
+          set({ status: 'disconnected' })
+          throw error
+        }
+      },
+      disconnect: async () => {
+        await transport.disconnect()
+        set({ status: 'disconnected', meters: [] })
+      },
+      dispatch: (command) => {
+        const partner = partnerCommand(get().mixer, command)
+        for (const cmd of partner ? [command, partner] : [command]) {
+          set((s) => ({ mixer: applyCommand(s.mixer, cmd) }))
+          transport.send(cmd)
+        }
+      },
+      toggleVisible: (ch) =>
+        set((s) => ({
+          visibleChannels: s.visibleChannels.includes(ch)
+            ? s.visibleChannels.filter((c) => c !== ch)
+            : [...s.visibleChannels, ch].sort((a, b) => a - b),
+        })),
+    }),
+    // only the phone's own channel choice survives a reload; mixer state always comes from the mixer
+    { name: 'l20-view', partialize: (s) => ({ visibleChannels: s.visibleChannels }) },
+  ),
+)
 
 // Events from the mixer (or, later, other devices via the Pi) are applied as-is: the sender already linked them.
 transport.onEvent((event) => {

@@ -19,6 +19,25 @@ export function createDemoMixer(): Mixer {
   seed.forEach(([name, color], i) => {
     mixer = applyCommand(mixer, { type: 'channel', ch: i + 1, patch: { name, color } })
   })
+  // fader, mix C send, FX1 send, EQ low/mid/high (dB) per channel, so the demo looks like the designs
+  const levels: [number, number, number, number, number, number][] = [
+    [-6, 2, -14, 2, -3, 1],
+    [-3, -12, -40, 4, -2, -4],
+    [-8, -8, -50, 2, -3, 1],
+    [-8, -8, -50, 2, -3, 1],
+    [-4, -60, -60, 0, 2, 3],
+    [-4, -60, -60, 0, 2, 3],
+    [-1, -20, -45, 3, -4, 2],
+    [-1, -20, -45, 3, -4, 2],
+  ]
+  levels.forEach(([fader, c, fx1, low, midGain, high], i) => {
+    const ch = i + 1
+    mixer = applyCommand(mixer, { type: 'channel', ch, patch: { fader } })
+    mixer = applyCommand(mixer, { type: 'send', ch, mix: 'C', patch: { level: c, pre: c > -60 } })
+    mixer = applyCommand(mixer, { type: 'send', ch, mix: 'fx1', patch: { level: fx1 } })
+    mixer = applyCommand(mixer, { type: 'eq', ch, patch: { lowCut: true, low, midGain, high } })
+  })
+  mixer = applyCommand(mixer, { type: 'bus', mix: 'C', patch: { fader: -2 } })
   for (const left of [3, 5, 7]) {
     mixer = applyCommand(mixer, { type: 'link', ch: left, linked: true })
     mixer = applyCommand(mixer, { type: 'channel', ch: left, patch: { pan: -100 } })

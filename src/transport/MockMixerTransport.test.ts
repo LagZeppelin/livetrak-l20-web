@@ -40,6 +40,6 @@ test('scene recall restores the saved state', async () => {
   const snapshot = events.at(-1)
   if (snapshot?.type !== 'snapshot') throw new Error('expected snapshot')
   expect(snapshot.mixer.scene).toBe(3)
-  expect(snapshot.mixer.channels[0].fader).toBe(0)
+  expect(snapshot.mixer.channels[0].fader).toBe(-6) // demo value at save time
   expect(snapshot.mixer.sceneNames[2]).toBe('Probe')
 })

@@ -1,12 +1,50 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+/* Beyond UI tokens (dark), same values as the approved designs */
+@theme {
+  --font-sans: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-canvas: #0b0c10;
+  --color-sidebar: #0e1015;
+  --color-surf: #15171d;
+  --color-raised: #1d2028;
+  --color-line: #262a34;
+  --color-strong: #3a3f4b;
+  --color-track: #262a34;
+  --color-fg: #eceef3;
+  --color-fg2: #8b91a1;
+  --color-fg3: #707688;
+  --color-thumb: #d9dce3;
+  --color-good: #3ecf8e;
+  --color-warn: #f2b44b;
+  --color-bad: #f2667a;
+  --color-info: #6aaef5;
+}
 
 :root {
   color-scheme: dark;
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100 antialiased;
-  /* mixer UI: no rubber-band scroll or double-tap zoom while dragging faders */
+  @apply bg-canvas text-fg font-sans antialiased;
+  background-image:
+    radial-gradient(circle at 18% 10%, rgb(60 110 170 / 0.24), transparent 60%),
+    radial-gradient(circle at 90% 95%, rgb(90 80 150 / 0.2), transparent 55%);
+  background-attachment: fixed;
+  font-variant-numeric: tabular-nums;
+  /* mixer UI: no rubber-band scroll, double-tap zoom or text selection while dragging faders */
   overscroll-behavior: none;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.card {
+  @apply rounded-lg border border-white/8 bg-[rgb(22_25_32/0.36)] shadow-[0_14px_24px_rgb(0_0_0/0.45)];
+}
+
+.meter-fill {
+  background: linear-gradient(to top, #3ecf8e 45%, #f2b44b 70%, #ff2a2a);
 }

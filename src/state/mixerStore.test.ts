@@ -26,7 +26,7 @@ test('linked channels move together; pan is mirrored, name stays', () => {
 
 test('unlinked channels stay independent', () => {
   store().dispatch({ type: 'channel', ch: 1, patch: { fader: -15 } })
-  expect(ch(2).fader).toBe(0)
+  expect(ch(2).fader).toBe(-3) // demo value for Bass
 })
 
 test('phone channel selection is sorted and toggles', () => {
