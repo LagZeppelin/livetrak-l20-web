@@ -10,9 +10,9 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 ## Phase 1 – Grundlagen (nach den User-Flows)
 
 1. User-Flows durchgehen → Screens & Rollen festlegen (FOH-iPad vs. Musiker-Phone)
-2. Datenmodell: Kanäle 1–20, Master, Aux A–F (Fader, Mute, Solo, Pan, Gain, EQ, Low Cut, Link-Gruppen)
-3. Mock-Transport mit Fake-Metering
-4. Store-Logik inkl. Stereo-Link (Fader/Mute/EQ synchron, Pan getrennt) + Tests
+2. ✅ Datenmodell (`src/lib/mixer.ts`): Kanäle 1–20, Main + 15-Band-GEQ, Mixe A–F, FX1/2, Sends mit Pre/Post, EQ + Low Cut, Rec-Select, Szenen 1–9, Recorder
+3. ✅ Mock-Mixer mit eigenem Zustand, Szenen, Recorder-Uhr und Fake-Metering
+4. ✅ Store-Logik inkl. Stereo-Link (Fader/Mute/Solo/EQ/Sends synchron, Pan gespiegelt) + Tests
 5. audiocn-Komponenten einbinden (Fader, Knob, Meter)
 
 ## Phase 2 – UI
@@ -24,11 +24,18 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 ## Phase 3 – Echte Hardware
 
 9. Protocol Discovery: BLE-MIDI-Traffic des BTA-1 mitschneiden und dokumentieren
-10. `BleMixerTransport` (Web Bluetooth bzw. Capacitor)
-11. iPad als Host: WebSocket-Server, Phones als Clients
+10. `BleMixerTransport` im Node-Server auf dem Pi
+11. Pi als Zentrale: Node-Server liefert Web-App + WebSocket aus, iPad und Phones als Clients (`WebSocketMixerTransport`)
+12. Pi-Setup: Autostart, Updates automatisch aus GitHub
+
+## Topologie (Entscheidung Ron, 2026-11-01)
+
+- Zentrale = eigene Raspberry-Pi-Box am Reise-Router (nicht der Licht-Pi). Der Pi spricht Bluetooth (BTA-1) mit dem L-20 und betreibt den Node-Server.
+- iPad und Phones sind reine Browser-Clients im WLAN, keine Capacitor-App. Damit bleiben die Clients OS-unabhängig.
+- iPad ist Primary beim Master, Secondary in den Monitor-Mixen (Phones besitzen ihren Mix, iPad darf mitändern). Durchgesetzt wird das auf dem Pi.
+- Code-Seite: alle Änderungen sind `MixerCommand`s (reines JSON) und laufen durch denselben Reducer `applyCommand`, im Browser wie auf dem Pi. Clients bekommen einen WebSocket-Transport, der Pi den BLE-Transport; der Stereo-Link wird beim Absender aufgelöst, der Pi leitet Befehle unverändert weiter.
 
 ## Offene Fragen / Risiken
 
-- Web Bluetooth gibt es in Safari/iOS nicht → iPad braucht vermutlich eine Capacitor-Shell (oder Bluefy-Browser zum Testen).
-- Ein WebSocket-Server läuft nicht im Browser → ebenfalls Capacitor-Plugin oder kleiner Node-Server im LAN.
+- BLE vom Pi zum BTA-1 (z. B. Node + noble/BlueZ) noch nicht erprobt → früh einen Spike einplanen.
 - L-20-Protokoll über BTA-1 ist nicht offiziell dokumentiert → Phase 3 hat das größte Unsicherheitsrisiko, früh einen Spike einplanen.
