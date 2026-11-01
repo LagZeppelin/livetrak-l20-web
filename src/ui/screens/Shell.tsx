@@ -168,23 +168,21 @@ function TopBar() {
           >
             ▶ ❚❚ Play
           </Btn>
-          <Btn className="h-11" onClick={() => press('stop')}>
+          <Btn className="col-span-2 h-11" onClick={() => press('stop')}>
             ■ Stop
           </Btn>
-          <Btn
-            kind={recorder.overdub ? 'on' : 'plain'}
-            className="h-11"
-            aria-pressed={recorder.overdub}
-            onClick={() => dispatch({ type: 'recorder', patch: { overdub: !recorder.overdub } })}
-          >
-            Overdub
+          <Btn className="h-11" aria-label="1 Minute zurück" onClick={() => press('rew')}>
+            ◀◀ 1 min
+          </Btn>
+          <Btn className="h-11" aria-label="1 Minute vor" onClick={() => press('ff')}>
+            1 min ▶▶
           </Btn>
           <p className="text-fg2 col-span-2 px-1 text-xs">
             {recorder.state === 'standby'
-              ? 'Aufnahme bereit: Play startet die Aufnahme.'
-              : recorder.overdub
-                ? 'Rec, dann Play nimmt auf. Während Play: Rec setzt ein und wieder aus.'
-                : 'Rec, dann Play nimmt auf.'}
+              ? 'Aufnahme bereit: Play startet, Rec bricht ab.'
+              : recorder.state === 'recPaused'
+                ? 'Aufnahme pausiert: springen, dann Play nimmt weiter auf.'
+                : 'Rec, dann Play nimmt auf. Play während der Aufnahme pausiert.'}
           </p>
         </div>
       </details>

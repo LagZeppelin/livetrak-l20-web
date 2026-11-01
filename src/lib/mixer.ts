@@ -84,7 +84,8 @@ export interface Channel {
   /** -100 (L100) … 100 (R100). */
   pan: number
   phase: boolean
-  recSelect: boolean
+  /** Channel REC/PLAY button: `rec` records the input to SD (red), `play` plays the recorded file instead of the input, fed in before the EQ (orange). */
+  recSelect: RecSelect
   eq: Eq
   sends: Record<SendMixId, Send>
   /** Adjacent channel this one is stereo-linked with, or null. */
@@ -103,24 +104,34 @@ export interface FxBus extends Bus {
   params: [number, number]
 }
 
+export type RecSelect = 'off' | 'rec' | 'play'
+/** Each press on a channel's REC/PLAY button: off → rec → play → off. */
+export const NEXT_REC_SELECT: Record<RecSelect, RecSelect> = {
+  off: 'rec',
+  rec: 'play',
+  play: 'off',
+}
+
 /** `standby` = REC pressed, waiting for PLAY; `recPaused` = recording paused (REC blinks). */
 export type RecorderState = 'stopped' | 'standby' | 'recording' | 'recPaused' | 'playing' | 'paused'
-export type TransportButton = 'rec' | 'play' | 'stop'
+/** REW/FF skip one minute, e.g. while a recording is paused. */
+export type TransportButton = 'rec' | 'play' | 'stop' | 'rew' | 'ff'
+export const SKIP_SECONDS = 60
 
 /**
- * The L-20 recorder buttons as a state machine (operation manual p. 39–43):
- * REC → standby, then PLAY starts recording. With OVER DUB on, REC during playback punches in, REC again punches out.
- * shortcut: REC in standby cancels and PLAY during recording pauses it; the manual implies both but doesn't spell them out, verify on the device.
+ * The L-20 recorder buttons as a state machine (operation manual p. 39–43, confirmed by Ron):
+ * REC → standby, REC again cancels; PLAY in standby starts recording, PLAY while recording pauses it.
  */
-export function pressTransport(r: Recorder, button: TransportButton): RecorderState {
+export function pressTransport(state: RecorderState, button: TransportButton): RecorderState {
   if (button === 'stop') return 'stopped'
+  if (button === 'rew' || button === 'ff') return state
   const next: Record<RecorderState, RecorderState> =
     button === 'rec'
       ? {
           stopped: 'standby',
           standby: 'stopped',
-          playing: r.overdub ? 'recording' : 'playing',
-          recording: r.overdub ? 'playing' : 'recording',
+          playing: 'playing',
+          recording: 'recording',
           recPaused: 'recPaused',
           paused: 'paused',
         }
@@ -132,12 +143,11 @@ export function pressTransport(r: Recorder, button: TransportButton): RecorderSt
           recording: 'recPaused',
           recPaused: 'recording',
         }
-  return next[r.state]
+  return next[state]
 }
 
 export interface Recorder {
   state: RecorderState
-  overdub: boolean
   /** Seconds. */
   position: number
 }
@@ -189,7 +199,7 @@ export function createMixer(): Mixer {
     solo: false,
     pan: 0,
     phase: false,
-    recSelect: false,
+    recSelect: 'off',
     eq: { on: true, lowCut: false, lowCutHz: 80, low: 0, midGain: 0, midFreq: 1000, high: 0 },
     sends: sends(),
     linkedWith: null,
@@ -209,7 +219,7 @@ export function createMixer(): Mixer {
     },
     scene: null,
     sceneNames: Array.from({ length: SCENE_SLOTS }, (_, i) => `Szene ${i + 1}`),
-    recorder: { state: 'stopped', overdub: false, position: 0 },
+    recorder: { state: 'stopped', position: 0 },
   }
 }
 
@@ -320,7 +330,14 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
     case 'transport':
       return {
         ...mixer,
-        recorder: { ...mixer.recorder, state: pressTransport(mixer.recorder, cmd.button) },
+        recorder: {
+          state: pressTransport(mixer.recorder.state, cmd.button),
+          position: Math.max(
+            0,
+            mixer.recorder.position +
+              (cmd.button === 'ff' ? SKIP_SECONDS : cmd.button === 'rew' ? -SKIP_SECONDS : 0),
+          ),
+        },
       }
     case 'recorder':
       return { ...mixer, recorder: { ...mixer.recorder, ...cmd.patch } }

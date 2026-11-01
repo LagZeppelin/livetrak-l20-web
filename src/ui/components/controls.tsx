@@ -264,13 +264,14 @@ export function Knob({
   )
 }
 
-type BtnKind = 'plain' | 'on' | 'mute' | 'solo' | 'rec'
+type BtnKind = 'plain' | 'on' | 'mute' | 'solo' | 'rec' | 'play'
 const KIND: Record<BtnKind, string> = {
   plain: 'border border-line bg-[rgb(22_25_32/0.55)] text-fg',
   on: 'bg-fg text-canvas',
   mute: 'bg-bad text-canvas',
   solo: 'bg-warn text-canvas',
   rec: 'border border-bad/50 bg-bad/16 text-bad',
+  play: 'border border-warn/50 bg-warn/16 text-warn',
 }
 
 export function Btn({
