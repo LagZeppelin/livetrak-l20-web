@@ -97,7 +97,7 @@ export function Fader({
         label={label}
         valueText={`${formatDb(db)} dB`}
       />
-      <div className="text-fg3 relative flex-1 font-mono text-[10px]">
+      <div className="text-fg3 relative min-w-7 flex-1 font-mono text-[10px]">
         {SCALE_MARKS.map((m) => (
           <span
             key={m}
