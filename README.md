@@ -75,7 +75,7 @@ Die UI spricht ausschließlich mit einem standardisierten Interface. Für die En
 ```bash
 npm install
 npm run dev     # Dev-Server, auch im LAN erreichbar (Handy-Test)
-npm run check   # Lint + Format-Check + Tests + Build (läuft auch in CI)
+npm run check   # Lint + Format-Check + Architektur-Audit + Tests + Build (läuft auch in CI)
 npm run format  # Prettier
 ```
 
