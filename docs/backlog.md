@@ -10,18 +10,18 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 ## Phase 1 – Grundlagen (nach den User-Flows)
 
 1. User-Flows durchgehen → Screens & Rollen festlegen (FOH-iPad vs. Musiker-Phone)
-2. ✅ Datenmodell (`src/lib/mixer.ts`): Kanäle 1–20, Main + 15-Band-GEQ, Mixe A–F, FX1/2, Sends mit Pre/Post, EQ + Low Cut, Rec-Select, Szenen 1–9, Recorder
+2. ✅ Datenmodell (`src/lib/mixer.ts`): Kanäle 1–20, Main + 15-Band-GEQ, Mixe A–F, FX1/2, Sends (ohne Pre/Post, wie am L-20), EQ + Low Cut, Rec-Select, Szenen 1–9, Recorder
 3. ✅ Mock-Mixer mit eigenem Zustand, Szenen, Recorder-Uhr und Fake-Metering
 4. ✅ Store-Logik inkl. Stereo-Link (Fader/Mute/Solo/EQ/Sends synchron, Pan gespiegelt) + Tests
 5. audiocn-Komponenten einbinden (Fader, Knob, Meter)
 
 ## Phase 2 – UI
 
-6. ✅ Kanal-Übersicht (iPad): Main-Mix mit FX-Returns und Master, Monitor-Mix A–F mit Pre/Post
+6. ✅ Kanal-Übersicht (iPad): Main-Mix mit FX-Returns und Master, Monitor-Mix A–F
 7. ✅ Kanal-Detail mit EQ-Kurve (SVG), Low Cut, FX-Sends, Pan, Phase
 8. ✅ Musiker-Ansicht (`?phone=C`): eigener Mix, Kanalauswahl, Stereo-Paare als eine Zeile
    8a. ✅ Master-GEQ (15 Bänder), Effekt-Auswahl FX1/2 (echte L-20-Effekte), Low Cut 40–600 Hz. Offen: Szenen benennen, Phones-Anzeige (kommt mit dem Pi)
-   8b. Aus dem Handbuch der L-20 Control App (v2.0) und der L-20-Bedienungsanleitung, noch nicht umgesetzt (Rons Entscheidung nötig): - FX-Parameter 1/2 pro Effekt (Tone/Decay, Time/Feedback, Rate). Im Datenmodell vorhanden, noch ohne UI - Monitor-Mixe: Das L-20 kennt kein Pre/Post pro Send, jeder Mix A–F hat eigene Kanal- und FX-Return-Fader. Pro Ausgang wählbar: Master oder eigener Mix - Mix kopieren (Ausgang halten, Ziel antippen), EFX-Return-Mute, G-EQ an/aus, Szene löschen (Reset), Doppeltipp auf Fader = Reset - Recorder: Overdub, Rückspulen/Vorspulen, Projektname/-wechsel, Tempo. Kompressor und Gain nur am Gerät, nicht per App - Remote-Geräte sehen in der Original-App nur Pre-Fader-Meter
+   8b. Aus dem Handbuch der L-20 Control App (v2.0) und der L-20-Bedienungsanleitung, noch nicht umgesetzt (Rons Entscheidung nötig): - FX-Parameter 1/2 pro Effekt (Tone/Decay, Time/Feedback, Rate). Im Datenmodell vorhanden, noch ohne UI - Monitor-Mixe: Pre/Post entfernt (Ron, 2026-11-01). Am L-20 hat jeder Mix A–F auch eigene FX-Return-Fader (bei uns bisher keine FX im Monitor-Mix). Pro Ausgang wählbar: Master oder eigener Mix - Mix kopieren (Ausgang halten, Ziel antippen), EFX-Return-Mute, G-EQ an/aus, Szene löschen (Reset), Doppeltipp auf Fader = Reset - Recorder: Overdub, Rückspulen/Vorspulen, Projektname/-wechsel, Tempo. Kompressor und Gain nur am Gerät, nicht per App - Remote-Geräte sehen in der Original-App nur Pre-Fader-Meter
 
 ## Phase 3 – Echte Hardware
 

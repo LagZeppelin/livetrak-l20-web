@@ -25,16 +25,14 @@ test('link button unlinks, links right, else left, else nothing', () => {
   expect(linkCommand(m, 9)).toEqual({ type: 'link', ch: 9, linked: true })
 })
 
-test('send meter follows pre/post, mute and the mix fader', () => {
+test('send meter ignores the main fader and follows mute and the mix fader', () => {
   let m = createMixer()
   const meters = Array(22).fill(-20)
   m = applyCommand(m, { type: 'channel', ch: 1, patch: { fader: -10 } })
-  m = applyCommand(m, { type: 'send', ch: 1, mix: 'A', patch: { level: -5, pre: true } })
-  expect(sendLevel(m, meters, 1, 'A')).toBe(-15) // -20 meter, +10 back to pre-fader, -5 send
-  m = applyCommand(m, { type: 'send', ch: 1, mix: 'A', patch: { pre: false } })
-  expect(sendLevel(m, meters, 1, 'A')).toBe(-25)
+  m = applyCommand(m, { type: 'send', ch: 1, mix: 'A', patch: { level: -5 } })
+  expect(sendLevel(m, meters, 1, 'A')).toBe(-15) // -20 meter, +10 back before the main fader, -5 send
   m = applyCommand(m, { type: 'bus', mix: 'A', patch: { fader: -3 } })
-  expect(mixLevel(m, meters, 'A')).toBe(-28)
+  expect(mixLevel(m, meters, 'A')).toBe(-18)
   m = applyCommand(m, { type: 'channel', ch: 1, patch: { mute: true } })
   expect(sendLevel(m, meters, 1, 'A')).toBe(-99)
   expect(mixLevel(m, [], 'A')).toBeUndefined()

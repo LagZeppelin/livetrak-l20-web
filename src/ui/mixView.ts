@@ -56,7 +56,8 @@ export function sendLevel(mixer: Mixer, meters: number[], ch: number, mix: Monit
   const m = meters[ch - 1]
   if (m === undefined) return undefined
   if (c.mute || send.level <= FADER_MIN) return SILENT
-  return Math.min(0, (send.pre ? m - c.fader : m) + send.level)
+  // the meter is post main fader; a monitor mix taps the input, then applies its own channel fader
+  return Math.min(0, m - c.fader + send.level)
 }
 
 export function mixLevel(mixer: Mixer, meters: number[], mix: MonitorMixId) {

@@ -42,7 +42,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
   const partner = c.linkedWith ? mixer.channels[c.linkedWith - 1] : null
   const link = linkCommand(mixer, ch)
   const eq = (patch: Partial<Eq>) => dispatch({ type: 'eq', ch, patch })
-  const pre = c.sends.fx1.pre
   const fixed = isFixedStereo(ch)
   const [editing, setEditing] = useState(false)
 
@@ -175,27 +174,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           )}
         </section>
         <section className="card flex w-fit shrink-0 flex-col p-3">
-          <div
-            aria-label="FX-Sends Pre/Post"
-            className="border-line grid grid-cols-2 rounded border p-0.5 text-xs"
-          >
-            {[true, false].map((v) => (
-              <button
-                key={String(v)}
-                type="button"
-                className={cn('rounded py-1', pre === v ? 'bg-raised' : 'text-fg2')}
-                aria-pressed={pre === v}
-                onClick={() =>
-                  (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
-                    dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
-                  )
-                }
-              >
-                {v ? 'Pre' : 'Post'}
-              </button>
-            ))}
-          </div>
-          <div className="divide-line mt-2 flex min-h-0 flex-1 flex-col divide-y">
+          <div className="divide-line flex min-h-0 flex-1 flex-col divide-y">
             {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
               <div key={mix} className="flex min-h-0 flex-1 flex-col py-3">
                 <div className="flex items-center justify-between gap-2">

@@ -68,10 +68,9 @@ export interface Eq {
   high: number
 }
 
+/** Send level of a channel into a mix. Like the L-20, each mix A–F has its own fader per channel, independent of the main fader (no pre/post). */
 export interface Send {
   level: number
-  /** Pre-fader tap; only meaningful for monitor mixes A–F. */
-  pre: boolean
 }
 
 export interface Channel {
@@ -147,7 +146,7 @@ const gain = (v: number) => clamp(v, -EQ_GAIN_MAX, EQ_GAIN_MAX)
 export function createMixer(): Mixer {
   const sends = () =>
     Object.fromEntries(
-      [...MONITOR_MIXES, ...FX_MIXES].map((m) => [m, { level: FADER_MIN, pre: true }]),
+      [...MONITOR_MIXES, ...FX_MIXES].map((m) => [m, { level: FADER_MIN }]),
     ) as Record<SendMixId, Send>
   const channels: Channel[] = Array.from({ length: CHANNEL_COUNT }, (_, i) => ({
     id: i + 1,

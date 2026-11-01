@@ -32,11 +32,11 @@ test('send pre/post and bus patches', () => {
     type: 'send',
     ch: 4,
     mix: 'C',
-    patch: { level: -5, pre: false },
+    patch: { level: -5 },
   })
   m = applyCommand(m, { type: 'bus', mix: 'main', patch: { fader: -3, effect: 9 } })
   m = applyCommand(m, { type: 'bus', mix: 'fx2', patch: { effect: 12, params: [120, -5] } })
-  expect(m.channels[3].sends.C).toEqual({ level: -5, pre: false })
+  expect(m.channels[3].sends.C).toEqual({ level: -5 })
   expect(m.main).not.toHaveProperty('effect')
   expect(m.main.fader).toBe(-3)
   expect(m.fx.fx2).toMatchObject({ effect: 9, params: [100, 0] })

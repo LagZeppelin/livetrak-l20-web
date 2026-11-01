@@ -135,22 +135,7 @@ function Strip({
       >
         Select
       </Btn>
-      {send ? (
-        <div className="mt-2 flex gap-1.5">
-          <Btn
-            kind={send.pre ? 'pre' : 'plain'}
-            className="h-7 w-10 shrink-0 text-xs"
-            onClick={() =>
-              mix !== 'main' && dispatch({ type: 'send', ch: c.id, mix, patch: { pre: !send.pre } })
-            }
-          >
-            {send.pre ? 'Pre' : 'Post'}
-          </Btn>
-          <ValueBox className="flex-1 py-1">{formatDb(level)}</ValueBox>
-        </div>
-      ) : (
-        <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(level)}</ValueBox>
-      )}
+      <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(level)}</ValueBox>
       <Fader
         db={level}
         onChange={setLevel}
