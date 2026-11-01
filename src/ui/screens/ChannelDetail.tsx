@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { EQ_GAIN_MAX, type Eq, type FxMixId } from '@/lib/mixer'
+import {
+  EQ_GAIN_MAX,
+  LOW_CUT_MAX_HZ,
+  LOW_CUT_MIN_HZ,
+  NAME_MAX,
+  type Eq,
+  type FxMixId,
+} from '@/lib/mixer'
 import { formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
@@ -14,6 +21,17 @@ const signed = (db: number) => `${db > 0 ? '+' : ''}${db.toFixed(1)} dB`
 // mid frequency knob is logarithmic, 100 Hz … 8 kHz
 const freqPos = (f: number) => Math.log(f / 100) / Math.log(80)
 const posFreq = (p: number) => Math.round((100 * 80 ** p) / 10) * 10
+// low cut knob like the hardware: far left is OFF, then 40 … 600 Hz logarithmic
+const CUT_OFF = 0.05
+const CUT_SPAN = LOW_CUT_MAX_HZ / LOW_CUT_MIN_HZ
+const cutPos = (eq: Eq) =>
+  eq.lowCut
+    ? CUT_OFF + ((1 - CUT_OFF) * Math.log(eq.lowCutHz / LOW_CUT_MIN_HZ)) / Math.log(CUT_SPAN)
+    : 0
+const posCut = (p: number): Partial<Eq> =>
+  p < CUT_OFF
+    ? { lowCut: false }
+    : { lowCut: true, lowCutHz: LOW_CUT_MIN_HZ * CUT_SPAN ** ((p - CUT_OFF) / (1 - CUT_OFF)) }
 
 export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }) {
   const mixer = useMixerStore((s) => s.mixer)
@@ -24,7 +42,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
   const partner = c.linkedWith ? mixer.channels[c.linkedWith - 1] : null
   const link = linkCommand(mixer, ch)
   const eq = (patch: Partial<Eq>) => dispatch({ type: 'eq', ch, patch })
-  const pre = c.sends.fx1.pre
   const fixed = isFixedStereo(ch)
   const [editing, setEditing] = useState(false)
 
@@ -157,27 +174,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           )}
         </section>
         <section className="card flex w-fit shrink-0 flex-col p-3">
-          <div
-            aria-label="FX-Sends Pre/Post"
-            className="border-line grid grid-cols-2 rounded border p-0.5 text-xs"
-          >
-            {[true, false].map((v) => (
-              <button
-                key={String(v)}
-                type="button"
-                className={cn('rounded py-1', pre === v ? 'bg-raised' : 'text-fg2')}
-                aria-pressed={pre === v}
-                onClick={() =>
-                  (['fx1', 'fx2'] as FxMixId[]).forEach((mix) =>
-                    dispatch({ type: 'send', ch, mix, patch: { pre: v } }),
-                  )
-                }
-              >
-                {v ? 'Pre' : 'Post'}
-              </button>
-            ))}
-          </div>
-          <div className="divide-line mt-2 flex min-h-0 flex-1 flex-col divide-y">
+          <div className="divide-line flex min-h-0 flex-1 flex-col divide-y">
             {(['fx1', 'fx2'] as FxMixId[]).map((mix) => (
               <div key={mix} className="flex min-h-0 flex-1 flex-col py-3">
                 <div className="flex items-center justify-between gap-2">
@@ -205,18 +202,13 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </Label>
           <EqGraph eq={c.eq} onChange={eq} />
           <div className="mt-6 grid grid-cols-5 items-start">
-            <div className="flex flex-col items-center gap-1.5">
-              <Btn
-                kind={c.eq.lowCut ? 'on' : 'plain'}
-                className="mt-1 size-[52px] rounded-full text-xs"
-                aria-pressed={c.eq.lowCut}
-                onClick={() => eq({ lowCut: !c.eq.lowCut })}
-              >
-                {c.eq.lowCut ? 'An' : 'Aus'}
-              </Btn>
-              <Label className="mt-0.5">Low Cut</Label>
-              <div className="font-mono text-sm">75 Hz</div>
-            </div>
+            <Knob
+              label="Low Cut"
+              pos={cutPos(c.eq)}
+              onPos={(p) => eq(posCut(p))}
+              reset={0}
+              valueText={c.eq.lowCut ? formatHz(c.eq.lowCutHz) : 'Aus'}
+            />
             <Knob
               label="Low"
               pos={gainPos(c.eq.low)}
@@ -304,7 +296,7 @@ function EditDialog({
           <Label className="mb-1.5">Name</Label>
           <input
             autoFocus
-            maxLength={16}
+            maxLength={NAME_MAX}
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             className="border-line bg-raised focus:border-fg2 h-10 w-full rounded border px-3 text-base outline-none"

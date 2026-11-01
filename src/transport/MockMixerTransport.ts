@@ -33,7 +33,7 @@ export function createDemoMixer(): Mixer {
   levels.forEach(([fader, c, fx1, low, midGain, high], i) => {
     const ch = i + 1
     mixer = applyCommand(mixer, { type: 'channel', ch, patch: { fader } })
-    mixer = applyCommand(mixer, { type: 'send', ch, mix: 'C', patch: { level: c, pre: c > -60 } })
+    mixer = applyCommand(mixer, { type: 'send', ch, mix: 'C', patch: { level: c } })
     mixer = applyCommand(mixer, { type: 'send', ch, mix: 'fx1', patch: { level: fx1 } })
     mixer = applyCommand(mixer, { type: 'eq', ch, patch: { lowCut: true, low, midGain, high } })
   })

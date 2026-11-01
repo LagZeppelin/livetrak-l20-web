@@ -19,9 +19,9 @@ test('linked channels move together; pan is mirrored, name stays', () => {
   expect(ch(3).name).toBe('X')
 
   store().dispatch({ type: 'eq', ch: 4, patch: { lowCut: true } })
-  store().dispatch({ type: 'send', ch: 4, mix: 'A', patch: { level: -6, pre: false } })
+  store().dispatch({ type: 'send', ch: 4, mix: 'A', patch: { level: -6 } })
   expect(ch(3).eq.lowCut).toBe(true)
-  expect(ch(3).sends.A).toEqual({ level: -6, pre: false })
+  expect(ch(3).sends.A).toEqual({ level: -6 })
 })
 
 test('unlinked channels stay independent', () => {

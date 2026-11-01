@@ -135,22 +135,7 @@ function Strip({
       >
         Select
       </Btn>
-      {send ? (
-        <div className="mt-2 flex gap-1.5">
-          <Btn
-            kind={send.pre ? 'pre' : 'plain'}
-            className="h-7 w-10 shrink-0 text-xs"
-            onClick={() =>
-              mix !== 'main' && dispatch({ type: 'send', ch: c.id, mix, patch: { pre: !send.pre } })
-            }
-          >
-            {send.pre ? 'Pre' : 'Post'}
-          </Btn>
-          <ValueBox className="flex-1 py-1">{formatDb(level)}</ValueBox>
-        </div>
-      ) : (
-        <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(level)}</ValueBox>
-      )}
+      <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(level)}</ValueBox>
       <Fader
         db={level}
         onChange={setLevel}
@@ -219,7 +204,7 @@ function FxStrip({ id }: { id: FxMixId }) {
     >
       <div className="text-sm font-semibold">{id === 'fx1' ? 'FX 1' : 'FX 2'}</div>
       <label className="text-fg2 relative mt-0.5 flex items-center text-xs">
-        <span className="truncate">{EFFECTS[bus.effect]}</span>
+        <span className="truncate">{EFFECTS[id][bus.effect].name}</span>
         <Icon name="caret" className="ml-auto size-3.5 shrink-0" />
         <select
           aria-label={`Effekt ${id === 'fx1' ? 'FX 1' : 'FX 2'}`}
@@ -229,9 +214,9 @@ function FxStrip({ id }: { id: FxMixId }) {
             dispatch({ type: 'bus', mix: id, patch: { effect: Number(e.target.value) } })
           }
         >
-          {EFFECTS.map((name, i) => (
+          {EFFECTS[id].map((e, i) => (
             <option key={i} value={i}>
-              {name}
+              {e.name}
             </option>
           ))}
         </select>

@@ -13,9 +13,39 @@ export const GEQ_BANDS = [
   25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000,
 ] as const
 export const SCENE_SLOTS = 9
-/** Effect types for the FX1/FX2 dropdown; `FxBus.effect` indexes this list. */
-// shortcut: placeholder names; replace with the L-20's real effect list once we have it from the manual or app
-export const EFFECTS = Array.from({ length: 20 }, (_, i) => `Effekt ${i + 1}`)
+/** Effect types per FX bus (L-20 operation manual); `FxBus.effect` indexes the bus's list, `params` names its two knobs. */
+const fx = (name: string, p1: string, p2: string) => ({ name, params: [p1, p2] as const })
+export const EFFECTS = {
+  fx1: [
+    fx('Hall 1', 'Tone', 'Decay'),
+    fx('Hall 2', 'Tone', 'Decay'),
+    fx('Room 1', 'Tone', 'Decay'),
+    fx('Plate', 'Tone', 'Decay'),
+    fx('Church', 'Tone', 'Decay'),
+    fx('DrumAmb', 'Tone', 'Decay'),
+    fx('GateRev', 'Tone', 'Decay'),
+    fx('Vocal 1', 'Time', 'Decay'),
+    fx('Vocal 2', 'Time', 'Decay'),
+    fx('Vocal 3', 'Time', 'Decay'),
+  ],
+  fx2: [
+    fx('Hall 3', 'Tone', 'Decay'),
+    fx('Room 2', 'Tone', 'Decay'),
+    fx('Spring', 'Tone', 'Decay'),
+    fx('Delay', 'Time', 'Feedback'),
+    fx('Analog', 'Time', 'Feedback'),
+    fx('P-P Dly', 'Time', 'Feedback'),
+    fx('Vocal 4', 'Time', 'Decay'),
+    fx('Chorus 1', 'Tone', 'Rate'),
+    fx('Chorus 2', 'Tone', 'Rate'),
+    fx('Cho+Dly', 'Time', 'Rate'),
+  ],
+}
+/** Channel names on the L-20 hold at most 8 characters. */
+export const NAME_MAX = 8
+/** Low cut corner frequency range of the channel EQ (12 dB/oct). */
+export const LOW_CUT_MIN_HZ = 40
+export const LOW_CUT_MAX_HZ = 600
 /** Left channel of the pairs the hardware wires as stereo inputs (17/18, 19/20); never unlinked. */
 export const FIXED_STEREO = [17, 19] as const
 
@@ -29,6 +59,8 @@ export type MixId = 'main' | SendMixId
 export interface Eq {
   on: boolean
   lowCut: boolean
+  /** Low cut corner, LOW_CUT_MIN_HZ … LOW_CUT_MAX_HZ. */
+  lowCutHz: number
   /** All gains in dB, ±EQ_GAIN_MAX. */
   low: number
   midGain: number
@@ -36,10 +68,9 @@ export interface Eq {
   high: number
 }
 
+/** Send level of a channel into a mix. Like the L-20, each mix A–F has its own fader per channel, independent of the main fader (no pre/post). */
 export interface Send {
   level: number
-  /** Pre-fader tap; only meaningful for monitor mixes A–F. */
-  pre: boolean
 }
 
 export interface Channel {
@@ -68,8 +99,8 @@ export interface Bus {
 export interface FxBus extends Bus {
   /** Index into the L-20 effect list (dropdown). */
   effect: number
-  /** Effect parameter knob, 0–100. */
-  param: number
+  /** The effect's two parameter knobs (names in EFFECTS), 0–100 each. */
+  params: [number, number]
 }
 
 export type RecorderState = 'stopped' | 'playing' | 'recording' | 'paused'
@@ -115,7 +146,7 @@ const gain = (v: number) => clamp(v, -EQ_GAIN_MAX, EQ_GAIN_MAX)
 export function createMixer(): Mixer {
   const sends = () =>
     Object.fromEntries(
-      [...MONITOR_MIXES, ...FX_MIXES].map((m) => [m, { level: FADER_MIN, pre: true }]),
+      [...MONITOR_MIXES, ...FX_MIXES].map((m) => [m, { level: FADER_MIN }]),
     ) as Record<SendMixId, Send>
   const channels: Channel[] = Array.from({ length: CHANNEL_COUNT }, (_, i) => ({
     id: i + 1,
@@ -127,7 +158,7 @@ export function createMixer(): Mixer {
     pan: 0,
     phase: false,
     recSelect: false,
-    eq: { on: true, lowCut: false, low: 0, midGain: 0, midFreq: 1000, high: 0 },
+    eq: { on: true, lowCut: false, lowCutHz: 80, low: 0, midGain: 0, midFreq: 1000, high: 0 },
     sends: sends(),
     linkedWith: null,
   }))
@@ -141,8 +172,8 @@ export function createMixer(): Mixer {
     main: { ...bus(), geq: GEQ_BANDS.map(() => 0) },
     monitors: Object.fromEntries(MONITOR_MIXES.map((m) => [m, bus()])) as Record<MonitorMixId, Bus>,
     fx: {
-      fx1: { ...bus(), effect: 0, param: 50 },
-      fx2: { ...bus(), effect: 0, param: 50 },
+      fx1: { ...bus(), effect: 0, params: [50, 50] },
+      fx2: { ...bus(), effect: 0, params: [50, 50] },
     },
     scene: null,
     sceneNames: Array.from({ length: SCENE_SLOTS }, (_, i) => `Szene ${i + 1}`),
@@ -175,12 +206,15 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
       const p = { ...cmd.patch }
       if (p.fader !== undefined) p.fader = fader(p.fader)
       if (p.pan !== undefined) p.pan = clamp(Math.round(p.pan), -100, 100)
+      if (p.name !== undefined) p.name = p.name.slice(0, NAME_MAX)
       return updateChannel(cmd.ch, (c) => ({ ...c, ...p }))
     }
     case 'eq': {
       const p = { ...cmd.patch }
       for (const k of ['low', 'midGain', 'high'] as const) if (p[k] !== undefined) p[k] = gain(p[k])
       if (p.midFreq !== undefined) p.midFreq = clamp(p.midFreq, 100, 8000)
+      if (p.lowCutHz !== undefined)
+        p.lowCutHz = clamp(Math.round(p.lowCutHz), LOW_CUT_MIN_HZ, LOW_CUT_MAX_HZ)
       return updateChannel(cmd.ch, (c) => ({ ...c, eq: { ...c.eq, ...p } }))
     }
     case 'send': {
@@ -219,7 +253,9 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
     case 'bus': {
       const p = { ...cmd.patch }
       if (p.fader !== undefined) p.fader = fader(p.fader)
-      if (p.param !== undefined) p.param = clamp(p.param, 0, 100)
+      if (p.params !== undefined)
+        p.params = p.params.map((v) => clamp(v, 0, 100)) as [number, number]
+      if (p.effect !== undefined) p.effect = clamp(Math.round(p.effect), 0, EFFECTS.fx1.length - 1)
       if (cmd.mix === 'main') {
         const { fader: f, mute } = p
         return { ...mixer, main: { ...mixer.main, ...strip({ fader: f, mute }) } }
