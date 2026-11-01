@@ -257,10 +257,7 @@ export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
     <section aria-label="Master" className="flex w-32 shrink-0 flex-col px-3 py-2">
-      <button type="button" className="text-left text-lg font-semibold" onClick={onOpenEq}>
-        Master
-      </button>
-      <button type="button" aria-label="Master-EQ öffnen" className="mt-2" onClick={onOpenEq}>
+      <button type="button" aria-label="Master-EQ öffnen" onClick={onOpenEq}>
         <MiniGeq geq={main.geq} />
       </button>
       <div className="mt-auto grid grid-cols-2 gap-1.5">
@@ -305,12 +302,11 @@ export function MonitorPanel({ mix }: { mix: MonitorMixId }) {
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
     <section aria-label={`Mix ${mix}`} className="flex w-[216px] shrink-0 flex-col px-3 py-2">
-      <div className="text-xl font-semibold">Mix {mix}</div>
       <a
         href={`?phone=${mix}`}
         target="_blank"
         rel="noreferrer"
-        className="border-line mt-3 flex h-9 items-center justify-center gap-2 rounded border bg-[rgb(22_25_32/0.55)] text-sm font-medium"
+        className="border-line flex h-9 items-center justify-center gap-2 rounded border bg-[rgb(22_25_32/0.55)] text-sm font-medium"
       >
         <Icon name="phone" /> Handy-Ansicht
       </a>

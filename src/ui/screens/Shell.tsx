@@ -4,19 +4,19 @@ import { formatTime } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Icon, Label, Meter, StatusPill } from '../components/controls'
-import type { View } from '../mixView'
+import type { Screen, View } from '../mixView'
 
 export function Shell({
-  mix,
-  onMix,
+  screen,
+  onScreen,
   overview,
   aside,
   children,
 }: {
-  mix: View
-  onMix: (mix: View) => void
+  screen: Screen
+  onScreen: (screen: Screen) => void
   overview: ReactNode
-  /** fixed right rail (master + FX or the monitor mix output), full height like the navigation */
+  /** fixed right rail (master + FX or the monitor mix output) under the screen dropdown, full height like the navigation */
   aside: ReactNode
   children: ReactNode
 }) {
@@ -29,9 +29,9 @@ export function Shell({
           {(['main', ...MONITOR_MIXES] as View[]).map((m) => (
             <Btn
               key={m}
-              kind={m === mix ? 'on' : 'plain'}
-              className={cn('h-12 text-[15px]', m === mix && 'font-semibold')}
-              onClick={() => onMix(m)}
+              kind={m === screen ? 'on' : 'plain'}
+              className={cn('h-12 text-[15px]', m === screen && 'font-semibold')}
+              onClick={() => onScreen(m)}
             >
               {m === 'main' ? 'Main' : m}
             </Btn>
@@ -39,7 +39,7 @@ export function Shell({
         </div>
         <Label className="mt-auto mb-2">Phones</Label>
         <a
-          href={`?phone=${mix === 'main' ? 'A' : mix}`}
+          href={`?phone=${MONITOR_MIXES.includes(screen as never) ? screen : 'A'}`}
           target="_blank"
           rel="noreferrer"
           aria-label="Handy-Ansicht öffnen"
@@ -53,12 +53,30 @@ export function Shell({
         <main className="min-h-0 flex-1 p-4 pb-3">{children}</main>
         {overview}
       </div>
-      <aside className="border-line bg-sidebar/85 divide-line flex shrink-0 divide-x border-l py-3">
-        {aside}
+      <aside className="border-line bg-sidebar/85 flex shrink-0 flex-col border-l py-3">
+        <label className="border-line relative mx-3 mb-3 flex h-10 items-center rounded border bg-[rgb(22_25_32/0.55)] px-3.5 text-lg font-semibold">
+          {SCREEN_LABEL(screen)}
+          <Icon name="caret" className="text-fg2 ml-auto size-4" />
+          <select
+            aria-label="Ansicht wählen"
+            className="absolute inset-0 opacity-0"
+            value={screen}
+            onChange={(e) => onScreen(e.target.value as Screen)}
+          >
+            {(['main', 'master', ...MONITOR_MIXES] as Screen[]).map((s) => (
+              <option key={s} value={s}>
+                {SCREEN_LABEL(s)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="divide-line flex min-h-0 flex-1 divide-x">{aside}</div>
       </aside>
     </div>
   )
 }
+
+const SCREEN_LABEL = (s: Screen) => (s === 'main' ? 'Main' : s === 'master' ? 'Master' : `Mix ${s}`)
 
 const REC_LABEL: Record<RecorderState, string> = {
   stopped: 'STOP',

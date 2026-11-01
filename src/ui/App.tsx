@@ -29,13 +29,14 @@ function Ipad() {
 
   return (
     <Shell
-      mix={mix}
-      onMix={(m) => {
-        setMix(m)
+      screen={detail === 'master' ? 'master' : mix}
+      onScreen={(s) => {
+        if (s === 'master') return setDetail('master')
+        setMix(s)
         setDetail(null)
       }}
       aside={
-        mix === 'main' || detail ? (
+        mix === 'main' || detail === 'master' ? (
           <>
             <FxReturns />
             <MasterStrip onOpenEq={() => setDetail('master')} />

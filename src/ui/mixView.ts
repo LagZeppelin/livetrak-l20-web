@@ -78,3 +78,6 @@ export const isFixedStereo = (ch: number) => (FIXED_STEREO as readonly number[])
 
 /** What the iPad shows: the main mix or one monitor mix. */
 export type View = 'main' | MonitorMixId
+
+/** What the right-rail dropdown switches: a mix view or the master page. */
+export type Screen = View | 'master'
