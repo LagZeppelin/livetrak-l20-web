@@ -190,6 +190,7 @@ function FxStrip({ id }: { id: FxMixId }) {
         label={`Fader ${id}`}
         onChange={(db) => dispatch({ type: 'bus', mix: id, patch: { fader: db } })}
         levels={[]}
+        handle="sm"
       />
     </section>
   )

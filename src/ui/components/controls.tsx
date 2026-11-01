@@ -63,11 +63,13 @@ export function Fader({
   onChange,
   levels,
   label,
+  handle = 'lg',
 }: {
   db: number
   onChange: (db: number) => void
   levels: (number | undefined)[]
   label: string
+  handle?: 'sm' | 'lg'
 }) {
   return (
     <div className="relative flex min-h-0 flex-1 justify-between px-1 py-3.5">
@@ -77,7 +79,7 @@ export function Fader({
       />
       <Slider
         axis="y"
-        handle="lg"
+        handle={handle}
         pos={dbToPos(db)}
         onPos={(p) => onChange(posToDb(p))}
         label={label}
