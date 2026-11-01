@@ -49,19 +49,44 @@ Ziel des Projekts ist eine moderne, touch-optimierte Oberfläche für iPad und S
 ```
 
 ### 1. Transport-Entkopplung (`IMixerTransport`)
+
 Die UI spricht ausschließlich mit einem standardisierten Interface. Für die Entwicklung zu Hause wird `MockMixerTransport` verwendet (simuliert Fader, Knobs und zufällige Metering-Werte). Im Proberaum wird der `BleMixerTransport` aktiviert.
 
 ### 2. Multi-Device Setup (iPad als Host)
-* Das **iPad Mini** hält die einzige aktive Bluetooth-LE-Verbindung zum Zoom BTA-1.
-* Auf dem iPad läuft neben der UI ein schlanker WebSocket-Server (z. B. via Capacitor iOS-Shell).
-* Die Smartphones der Bandmitglieder verbinden sich im Proberaum-WLAN per Browser auf die IP des iPads.
+
+- Das **iPad Mini** hält die einzige aktive Bluetooth-LE-Verbindung zum Zoom BTA-1.
+- Auf dem iPad läuft neben der UI ein schlanker WebSocket-Server (z. B. via Capacitor iOS-Shell).
+- Die Smartphones der Bandmitglieder verbinden sich im Proberaum-WLAN per Browser auf die IP des iPads.
 
 ---
 
 ## 🛠 Tech-Stack
 
-* **Framework:** React + Vite + TypeScript
-* **Styling & Audio-UI:** Tailwind CSS + [audiocn](https://audiocn.dev) (Fader, Knobs, Level-Meters)
-* **EQ-Kurve:** SVG / Canvas Biquad Frequency Response
-* **State Management:** Zustand oder Nano Stores
-* **Bluetooth / Transport:** Web Bluetooth API / CoreBluetooth via Capacitor
+- **Framework:** React + Vite + TypeScript
+- **Styling & Audio-UI:** Tailwind CSS + [audiocn](https://audiocn.dev) (Fader, Knobs, Level-Meters)
+- **EQ-Kurve:** SVG / Canvas Biquad Frequency Response
+- **State Management:** Zustand
+- **Bluetooth / Transport:** Web Bluetooth API / CoreBluetooth via Capacitor
+
+---
+
+## 💻 Entwicklung
+
+```bash
+npm install
+npm run dev     # Dev-Server, auch im LAN erreichbar (Handy-Test)
+npm run check   # Lint + Format-Check + Tests + Build (läuft auch in CI)
+npm run format  # Prettier
+```
+
+```text
+src/
+  ui/          React-Komponenten (audiocn landet in ui/components/ui)
+  state/       Zustand-Store, spricht nur mit IMixerTransport
+  transport/   IMixerTransport + MockMixerTransport (später BLE / WebSocket)
+  lib/         kleine Helfer (cn)
+```
+
+audiocn-Komponenten werden über die shadcn-CLI hinzugefügt (`components.json` ist vorbereitet), z. B. `npx shadcn@latest add <audiocn-registry-url>`.
+
+Backlog: [docs/backlog.md](docs/backlog.md)
