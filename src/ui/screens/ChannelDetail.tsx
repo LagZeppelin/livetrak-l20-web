@@ -2,7 +2,7 @@ import { EQ_GAIN_MAX, type Eq, type FxMixId } from '@/lib/mixer'
 import { dbToPos, formatDb, formatPan, posToDb } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Fader, HSlider, Icon, Knob, Label, ValueBox } from '../components/controls'
+import { Btn, Fader, Slider, Icon, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
 import { channelNo, formatHz, linkCommand } from '../mixView'
 
@@ -160,7 +160,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
                 <span className="font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
                 <span className="font-mono text-xs">{formatDb(c.sends[mix].level)} dB</span>
               </div>
-              <HSlider
+              <Slider
                 pos={1 - dbToPos(c.sends[mix].level)}
                 onPos={(p) => dispatch({ type: 'send', ch, mix, patch: { level: posToDb(1 - p) } })}
                 label={`Send ${mix}`}

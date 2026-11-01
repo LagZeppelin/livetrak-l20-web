@@ -2,7 +2,7 @@ import { type Channel, type FxMixId, type MonitorMixId } from '@/lib/mixer'
 import { dbToPos, formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Fader, HSlider, Icon, Label, ValueBox } from '../components/controls'
+import { Btn, Fader, Slider, Icon, Label, ValueBox } from '../components/controls'
 import { MiniEq } from '../components/EqGraph'
 import { channelNo, linkCommand, mixLevel, sendLevel, type View } from '../mixView'
 
@@ -147,7 +147,7 @@ function Strip({ c, mix, onOpen }: { c: Channel; mix: View; onOpen: (ch: number)
         {send ? (
           <div className="text-fg3 mt-1 text-[10px]">nur im Main-Mix</div>
         ) : (
-          <HSlider
+          <Slider
             pos={(c.pan + 100) / 200}
             onPos={(p) =>
               dispatch({ type: 'channel', ch: c.id, patch: { pan: Math.round(p * 200 - 100) } })
