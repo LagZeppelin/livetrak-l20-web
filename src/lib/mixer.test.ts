@@ -50,3 +50,21 @@ test('names and low cut stay within the hardware limits', () => {
   expect(m.channels[0].eq).toMatchObject({ lowCut: true, lowCutHz: 600 })
   expect(m.channels[1].eq.lowCutHz).toBe(40)
 })
+
+test('recorder buttons work like the L-20: REC then PLAY records, REC during playback punches with overdub', () => {
+  const press = (m: ReturnType<typeof createMixer>, button: 'rec' | 'play' | 'stop') =>
+    applyCommand(m, { type: 'transport', button })
+  let m = press(createMixer(), 'play')
+  expect(m.recorder.state).toBe('playing')
+  m = press(m, 'rec') // no overdub: no punch-in
+  expect(m.recorder.state).toBe('playing')
+  m = press(press(m, 'stop'), 'rec')
+  expect(m.recorder.state).toBe('standby')
+  m = press(m, 'play')
+  expect(m.recorder.state).toBe('recording')
+  m = press(press(m, 'stop'), 'play')
+  m = applyCommand(m, { type: 'recorder', patch: { overdub: true } })
+  m = press(m, 'rec')
+  expect(m.recorder.state).toBe('recording')
+  expect(press(m, 'rec').recorder.state).toBe('playing')
+})

@@ -16,7 +16,8 @@ test('sends a snapshot on connect, then meters and a running recorder clock', as
   const first = events[0]
   expect(first.type === 'snapshot' && first.mixer.channels[0].name).toBe('Guitar')
 
-  transport.send({ type: 'recorder', patch: { state: 'recording' } })
+  transport.send({ type: 'transport', button: 'rec' })
+  transport.send({ type: 'transport', button: 'play' })
   vi.advanceTimersByTime(2000)
   await transport.disconnect()
 

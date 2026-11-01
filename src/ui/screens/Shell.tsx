@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react'
-import { MONITOR_MIXES, type RecorderState } from '@/lib/mixer'
+import { MONITOR_MIXES, type RecorderState, type TransportButton } from '@/lib/mixer'
 import { formatTime } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
@@ -80,8 +80,10 @@ const SCREEN_LABEL = (s: Screen) => (s === 'main' ? 'Main' : s === 'master' ? 'M
 
 const REC_LABEL: Record<RecorderState, string> = {
   stopped: 'STOP',
+  standby: 'BEREIT',
   playing: 'PLAY',
   recording: 'REC',
+  recPaused: 'REC PAUSE',
   paused: 'PAUSE',
 }
 
@@ -93,7 +95,7 @@ function TopBar() {
   const dispatch = useMixerStore((s) => s.dispatch)
   const connect = useMixerStore((s) => s.connect)
   const rec = recorder.state === 'recording'
-  const setRec = (state: RecorderState) => dispatch({ type: 'recorder', patch: { state } })
+  const press = (button: TransportButton) => dispatch({ type: 'transport', button })
 
   return (
     <header className="border-line flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -152,22 +154,38 @@ function TopBar() {
           <Icon name="caret" className="text-fg2 size-4" />
         </summary>
         <div className="card bg-surf absolute top-11 left-1/2 z-20 grid w-56 -translate-x-1/2 grid-cols-2 gap-2 p-2">
-          <Btn kind={rec ? 'rec' : 'plain'} className="h-11" onClick={() => setRec('recording')}>
-            ● Aufnahme
+          <Btn
+            kind={['standby', 'recording', 'recPaused'].includes(recorder.state) ? 'rec' : 'plain'}
+            className={cn('h-11', recorder.state === 'recPaused' && 'animate-pulse')}
+            onClick={() => press('rec')}
+          >
+            ● Rec
           </Btn>
           <Btn
             kind={recorder.state === 'playing' ? 'on' : 'plain'}
-            className="h-11"
-            onClick={() => setRec('playing')}
+            className={cn('h-11', recorder.state === 'paused' && 'animate-pulse')}
+            onClick={() => press('play')}
           >
-            ▶ Play
+            ▶ ❚❚ Play
           </Btn>
-          <Btn className="h-11" onClick={() => setRec('paused')}>
-            ❚❚ Pause
-          </Btn>
-          <Btn className="h-11" onClick={() => setRec('stopped')}>
+          <Btn className="h-11" onClick={() => press('stop')}>
             ■ Stop
           </Btn>
+          <Btn
+            kind={recorder.overdub ? 'on' : 'plain'}
+            className="h-11"
+            aria-pressed={recorder.overdub}
+            onClick={() => dispatch({ type: 'recorder', patch: { overdub: !recorder.overdub } })}
+          >
+            Overdub
+          </Btn>
+          <p className="text-fg2 col-span-2 px-1 text-xs">
+            {recorder.state === 'standby'
+              ? 'Aufnahme bereit: Play startet die Aufnahme.'
+              : recorder.overdub
+                ? 'Rec, dann Play nimmt auf. Während Play: Rec setzt ein und wieder aus.'
+                : 'Rec, dann Play nimmt auf.'}
+          </p>
         </div>
       </details>
 

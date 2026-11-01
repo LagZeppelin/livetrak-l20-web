@@ -103,7 +103,37 @@ export interface FxBus extends Bus {
   params: [number, number]
 }
 
-export type RecorderState = 'stopped' | 'playing' | 'recording' | 'paused'
+/** `standby` = REC pressed, waiting for PLAY; `recPaused` = recording paused (REC blinks). */
+export type RecorderState = 'stopped' | 'standby' | 'recording' | 'recPaused' | 'playing' | 'paused'
+export type TransportButton = 'rec' | 'play' | 'stop'
+
+/**
+ * The L-20 recorder buttons as a state machine (operation manual p. 39–43):
+ * REC → standby, then PLAY starts recording. With OVER DUB on, REC during playback punches in, REC again punches out.
+ * shortcut: REC in standby cancels and PLAY during recording pauses it; the manual implies both but doesn't spell them out, verify on the device.
+ */
+export function pressTransport(r: Recorder, button: TransportButton): RecorderState {
+  if (button === 'stop') return 'stopped'
+  const next: Record<RecorderState, RecorderState> =
+    button === 'rec'
+      ? {
+          stopped: 'standby',
+          standby: 'stopped',
+          playing: r.overdub ? 'recording' : 'playing',
+          recording: r.overdub ? 'playing' : 'recording',
+          recPaused: 'recPaused',
+          paused: 'paused',
+        }
+      : {
+          stopped: 'playing',
+          standby: 'recording',
+          playing: 'paused',
+          paused: 'playing',
+          recording: 'recPaused',
+          recPaused: 'recording',
+        }
+  return next[r.state]
+}
 
 export interface Recorder {
   state: RecorderState
@@ -137,6 +167,8 @@ export type MixerCommand =
   | { type: 'bus'; mix: MixId; patch: Partial<FxBus> }
   | { type: 'geq'; band: number; gain: number }
   | { type: 'scene'; action: 'save' | 'recall'; slot: number; name?: string }
+  /** A press on REC, PLAY/PAUSE or STOP; the reducer works out the new state like the L-20 does. */
+  | { type: 'transport'; button: TransportButton }
   | { type: 'recorder'; patch: Partial<Recorder> }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
@@ -285,6 +317,11 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
           : mixer.sceneNames
       return { ...mixer, scene: cmd.slot, sceneNames }
     }
+    case 'transport':
+      return {
+        ...mixer,
+        recorder: { ...mixer.recorder, state: pressTransport(mixer.recorder, cmd.button) },
+      }
     case 'recorder':
       return { ...mixer, recorder: { ...mixer.recorder, ...cmd.patch } }
   }
