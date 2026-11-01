@@ -286,13 +286,13 @@ function EditDialog({
   const [draft, setDraft] = useState({ name, color })
   return (
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-md"
       onClick={onClose}
     >
       <form
         role="dialog"
         aria-label="Kanal bearbeiten"
-        className="card bg-surf w-96 p-5"
+        className="bg-surf w-96 rounded-xl border border-white/12 p-5 shadow-[0_24px_64px_rgb(0_0_0/0.7)]"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault()
