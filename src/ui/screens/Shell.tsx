@@ -10,11 +10,14 @@ export function Shell({
   mix,
   onMix,
   overview,
+  aside,
   children,
 }: {
   mix: View
   onMix: (mix: View) => void
   overview: ReactNode
+  /** fixed right rail (master + FX or the monitor mix output), full height like the navigation */
+  aside: ReactNode
   children: ReactNode
 }) {
   return (
@@ -50,6 +53,9 @@ export function Shell({
         <main className="min-h-0 flex-1 p-4 pb-3">{children}</main>
         {overview}
       </div>
+      <aside className="border-line bg-sidebar/85 flex shrink-0 gap-2 border-l px-2 py-3">
+        {aside}
+      </aside>
     </div>
   )
 }
@@ -178,7 +184,7 @@ export function Overview({
   const meters = useMixerStore((s) => s.meters)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
   const items = Array.from({ length: 20 }, (_, i) => i + 1).concat(fx ? [21, 22] : [])
-  const STEP = 37
+  const STEP = 33
 
   return (
     <div
@@ -220,7 +226,7 @@ export function Overview({
             <div
               key={ch}
               data-ch={ch}
-              className="relative flex w-[37px] flex-col items-center py-2"
+              className="relative flex w-[33px] flex-col items-center py-2"
             >
               <span className={cn('font-mono text-[11px]', on ? 'font-medium' : 'text-fg2')}>
                 {ch <= 20 ? ch : `FX${ch - 20}`}
@@ -235,7 +241,7 @@ export function Overview({
           )
         })}
       </div>
-      <div className="ml-auto text-right text-xs leading-[18px]">
+      <div className="ml-auto text-right text-[11px] leading-[18px] whitespace-nowrap">
         <div className="text-fg2">Tippen: Kanal öffnen</div>
         <div className="text-fg3">Halten und ziehen: scrollen</div>
       </div>

@@ -43,14 +43,6 @@ export function Console({
           ),
         )}
       </div>
-      {mix === 'main' ? (
-        <>
-          <FxReturns />
-          <MasterStrip />
-        </>
-      ) : (
-        <MonitorPanel mix={mix} />
-      )}
     </div>
   )
 }
@@ -243,7 +235,7 @@ function FxStrip({ id }: { id: FxMixId }) {
   )
 }
 
-function MasterStrip() {
+export function MasterStrip() {
   const main = useMixerStore((s) => s.mixer.main)
   const anySolo = useMixerStore((s) => s.mixer.channels.some((c) => c.solo))
   const left = useMixerStore((s) => s.meters[20])
@@ -251,7 +243,7 @@ function MasterStrip() {
   const channels = useMixerStore((s) => s.mixer.channels)
   const dispatch = useMixerStore((s) => s.dispatch)
   return (
-    <section aria-label="Master" className="card flex w-[104px] shrink-0 flex-col p-2.5">
+    <section aria-label="Master" className="card flex w-24 shrink-0 flex-col p-2.5">
       <div className="text-lg font-semibold">Master</div>
       <div className="border-line mt-3 grid grid-cols-[auto_1fr] gap-1.5 border-t pt-3">
         <Btn
@@ -289,7 +281,7 @@ function MasterStrip() {
   )
 }
 
-function MonitorPanel({ mix }: { mix: MonitorMixId }) {
+export function MonitorPanel({ mix }: { mix: MonitorMixId }) {
   const bus = useMixerStore((s) => s.mixer.monitors[mix])
   const level = useMixerStore((s) => mixLevel(s.mixer, s.meters, mix))
   const dispatch = useMixerStore((s) => s.dispatch)

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
 import { useMixerStore } from '@/state/mixerStore'
 import { ChannelDetail } from './screens/ChannelDetail'
-import { Console, STRIP_W } from './screens/Console'
+import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
 import { Phone } from './screens/Phone'
 import type { View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
@@ -33,6 +33,16 @@ function Ipad() {
         setMix(m)
         setDetail(null)
       }}
+      aside={
+        mix === 'main' || detail ? (
+          <>
+            <FxReturns />
+            <MasterStrip />
+          </>
+        ) : (
+          <MonitorPanel mix={mix} />
+        )
+      }
       overview={
         <Overview
           fx={mix === 'main' && detail === null}
