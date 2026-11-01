@@ -35,9 +35,18 @@ test('send pre/post and bus patches', () => {
     patch: { level: -5, pre: false },
   })
   m = applyCommand(m, { type: 'bus', mix: 'main', patch: { fader: -3, effect: 9 } })
-  m = applyCommand(m, { type: 'bus', mix: 'fx2', patch: { effect: 4, param: 120 } })
+  m = applyCommand(m, { type: 'bus', mix: 'fx2', patch: { effect: 12, params: [120, -5] } })
   expect(m.channels[3].sends.C).toEqual({ level: -5, pre: false })
   expect(m.main).not.toHaveProperty('effect')
   expect(m.main.fader).toBe(-3)
-  expect(m.fx.fx2).toMatchObject({ effect: 4, param: 100 })
+  expect(m.fx.fx2).toMatchObject({ effect: 9, params: [100, 0] })
+})
+
+test('names and low cut stay within the hardware limits', () => {
+  let m = applyCommand(createMixer(), { type: 'channel', ch: 1, patch: { name: 'Lead Vocals' } })
+  m = applyCommand(m, { type: 'eq', ch: 1, patch: { lowCut: true, lowCutHz: 1000 } })
+  m = applyCommand(m, { type: 'eq', ch: 2, patch: { lowCutHz: 10 } })
+  expect(m.channels[0].name).toBe('Lead Voc')
+  expect(m.channels[0].eq).toMatchObject({ lowCut: true, lowCutHz: 600 })
+  expect(m.channels[1].eq.lowCutHz).toBe(40)
 })

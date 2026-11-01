@@ -219,7 +219,7 @@ function FxStrip({ id }: { id: FxMixId }) {
     >
       <div className="text-sm font-semibold">{id === 'fx1' ? 'FX 1' : 'FX 2'}</div>
       <label className="text-fg2 relative mt-0.5 flex items-center text-xs">
-        <span className="truncate">{EFFECTS[bus.effect]}</span>
+        <span className="truncate">{EFFECTS[id][bus.effect].name}</span>
         <Icon name="caret" className="ml-auto size-3.5 shrink-0" />
         <select
           aria-label={`Effekt ${id === 'fx1' ? 'FX 1' : 'FX 2'}`}
@@ -229,9 +229,9 @@ function FxStrip({ id }: { id: FxMixId }) {
             dispatch({ type: 'bus', mix: id, patch: { effect: Number(e.target.value) } })
           }
         >
-          {EFFECTS.map((name, i) => (
+          {EFFECTS[id].map((e, i) => (
             <option key={i} value={i}>
-              {name}
+              {e.name}
             </option>
           ))}
         </select>

@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { EQ_GAIN_MAX, GEQ_BANDS, type Eq } from '@/lib/mixer'
-import { EQ_HIGH_HZ, EQ_LOW_HZ, eqResponse, geqResponse, LOW_CUT_HZ } from '@/lib/scale'
+import { EQ_HIGH_HZ, EQ_LOW_HZ, eqResponse, geqResponse } from '@/lib/scale'
 
 const W = 600
 const LOG_MIN = Math.log10(20)
@@ -113,10 +113,10 @@ export function EqGraph({ eq, onChange }: { eq: Eq; onChange: (patch: Partial<Eq
     >
       {eq.lowCut && (
         <g>
-          <circle cx={fx(LOW_CUT_HZ)} cy={gy(eqResponse(eq, LOW_CUT_HZ))} r="11" fill="#6aaef5" />
+          <circle cx={fx(eq.lowCutHz)} cy={gy(eqResponse(eq, eq.lowCutHz))} r="11" fill="#6aaef5" />
           <text
-            x={fx(LOW_CUT_HZ)}
-            y={gy(eqResponse(eq, LOW_CUT_HZ)) + 3.5}
+            x={fx(eq.lowCutHz)}
+            y={gy(eqResponse(eq, eq.lowCutHz)) + 3.5}
             textAnchor="middle"
             fontSize="9"
             fontWeight="700"

@@ -51,7 +51,6 @@ export function formatTime(seconds: number): string {
 /** Fixed corner frequencies of the L-20 channel EQ (only the mid band is sweepable). */
 export const EQ_LOW_HZ = 100
 export const EQ_HIGH_HZ = 10000
-export const LOW_CUT_HZ = 75
 
 /**
  * Approximate EQ response in dB at f Hz, for drawing only.
@@ -64,7 +63,7 @@ export function eqResponse(eq: Eq, f: number): number {
   let db = eq.low * shelf(-oct(f, EQ_LOW_HZ)) + eq.high * shelf(oct(f, EQ_HIGH_HZ))
   db += eq.midGain * Math.exp(-(oct(f, eq.midFreq) ** 2) / 0.5)
   // 12 dB/octave below the cut frequency
-  if (eq.lowCut && f < LOW_CUT_HZ * 2) db -= 12 * Math.max(0, oct(LOW_CUT_HZ * 2, f)) ** 1.5
+  if (eq.lowCut && f < eq.lowCutHz * 2) db -= 12 * Math.max(0, oct(eq.lowCutHz * 2, f)) ** 1.5
   return db
 }
 

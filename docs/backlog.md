@@ -20,7 +20,13 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 6. ✅ Kanal-Übersicht (iPad): Main-Mix mit FX-Returns und Master, Monitor-Mix A–F mit Pre/Post
 7. ✅ Kanal-Detail mit EQ-Kurve (SVG), Low Cut, FX-Sends, Pan, Phase
 8. ✅ Musiker-Ansicht (`?phone=C`): eigener Mix, Kanalauswahl, Stereo-Paare als eine Zeile
-   8a. Offen: Master-GEQ (15 Bänder), Effekt-Auswahl FX1/2, Szenen benennen, Phones-Anzeige (kommt mit dem Pi)
+   8a. ✅ Master-GEQ (15 Bänder), Effekt-Auswahl FX1/2 (echte L-20-Effekte), Low Cut 40–600 Hz. Offen: Szenen benennen, Phones-Anzeige (kommt mit dem Pi)
+   8b. Aus dem Handbuch der L-20 Control App (v2.0) und der L-20-Bedienungsanleitung, noch nicht umgesetzt (Rons Entscheidung nötig):
+       - FX-Parameter 1/2 pro Effekt (Tone/Decay, Time/Feedback, Rate). Im Datenmodell vorhanden, noch ohne UI
+       - Monitor-Mixe: Das L-20 kennt kein Pre/Post pro Send, jeder Mix A–F hat eigene Kanal- und FX-Return-Fader. Pro Ausgang wählbar: Master oder eigener Mix
+       - Mix kopieren (Ausgang halten, Ziel antippen), EFX-Return-Mute, G-EQ an/aus, Szene löschen (Reset), Doppeltipp auf Fader = Reset
+       - Recorder: Overdub, Rückspulen/Vorspulen, Projektname/-wechsel, Tempo. Kompressor und Gain nur am Gerät, nicht per App
+       - Remote-Geräte sehen in der Original-App nur Pre-Fader-Meter
 
 ## Phase 3 – Echte Hardware
 
