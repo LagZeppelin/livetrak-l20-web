@@ -3,10 +3,12 @@ import {
   BLE_MIDI_CHARACTERISTIC,
   BLE_MIDI_SERVICE,
   BleMidiParser,
-  REQUEST_STATE,
+  HELLO,
   blePacket,
   decode,
-  decodeNames,
+  decodeClock,
+  decodeMeters,
+  decodeState,
   encode,
 } from '@/lib/l20Midi'
 import type { IMixerTransport, MixerEvent } from './types'
@@ -47,6 +49,7 @@ export class BleMidiTransport implements IMixerTransport {
   private char: Characteristic | null = null
   private listeners = new Set<(e: MixerEvent) => void>()
   private parser = new BleMidiParser()
+  private clock: number[] = []
   /** Latest unsent message per control, so a fast drag only sends where the fader is now. */
   private pending = new Map<string, number[]>()
   private writing = false
@@ -69,7 +72,7 @@ export class BleMidiTransport implements IMixerTransport {
     this.char = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC)
     this.char.addEventListener('characteristicvaluechanged', this.onValue)
     await this.char.startNotifications()
-    this.queue(REQUEST_STATE)
+    for (const msg of HELLO) this.queue(msg)
   }
 
   async disconnect(): Promise<void> {
@@ -129,8 +132,22 @@ export class BleMidiTransport implements IMixerTransport {
     )) {
       const s = this.sent.get(`${msg[0]}:${msg[1]}`)
       const echo = !!s && Date.now() - s.at < ECHO_MS && s.values.has(msg[2]!)
-      const cmds = msg[0] === 0xf0 ? decodeNames(msg) : echo ? [] : [decode(msg)]
-      for (const cmd of cmds) if (cmd) for (const l of this.listeners) l(cmd)
+      const levels = decodeMeters(msg)
+      if (levels) {
+        this.emit({ type: 'meters', levels })
+        continue
+      }
+      const cmds =
+        msg[0] === 0xf0
+          ? decodeState(msg)
+          : echo
+            ? []
+            : [decode(msg) ?? decodeClock(msg, this.clock)]
+      for (const cmd of cmds) if (cmd) this.emit(cmd)
     }
+  }
+
+  private emit(e: MixerEvent) {
+    for (const l of this.listeners) l(e)
   }
 }
