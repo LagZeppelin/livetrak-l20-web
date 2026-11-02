@@ -301,14 +301,15 @@ export function decodeState(msg: Msg): MixerCommand[] {
 
 /**
  * Meter levels from F0 52 00 00 31 04 …: byte 6+n is channel n (1–20). Main and FX meters are not mapped yet.
- * shortcut: value − 48 = dBFS is a guess from speech levels; calibrate with a test tone
+ * Values seen are 0 (silent) or 16…25, never 2…15: read as bit 4 = signal, low 4 bits = level step 0…15.
+ * shortcut: steps spread evenly over −48…0 dBFS (15 = top/clip); calibrate against the L-20's LEDs with a test tone
  */
 export function decodeMeters(msg: Msg): number[] | null {
   if (msg[4] !== 0x31 || msg.length < 27) return null
   const levels = Array.from({ length: 26 }, () => FADER_MIN)
   for (let ch = 1; ch <= 20; ch++) {
     const v = msg[6 + ch]!
-    levels[ch - 1] = v ? Math.max(FADER_MIN, v - 48) : FADER_MIN
+    levels[ch - 1] = v & 0x10 ? -48 + ((v & 0x0f) * 48) / 15 : FADER_MIN
   }
   return levels
 }
