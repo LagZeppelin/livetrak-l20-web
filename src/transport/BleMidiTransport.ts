@@ -92,7 +92,8 @@ export class BleMidiTransport implements IMixerTransport {
   }
 
   private queue(msg: number[]) {
-    const key = msg[0] === 0xf0 ? msg.join() : `${msg[0]}:${msg[1]}`
+    // button presses (SysEx, recorder CC 0x57) must all go out; level controls only need their latest value
+    const key = msg[0] === 0xf0 || msg[1] === 0x57 ? msg.join() : `${msg[0]}:${msg[1]}`
     this.pending.set(key, msg)
     if (msg[0] !== 0xf0) {
       const prev = this.sent.get(key)

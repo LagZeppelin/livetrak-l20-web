@@ -13,8 +13,10 @@ import {
   type Eq,
   type MixId,
   type MixerCommand,
+  type RecSelect,
   type RecorderState,
   type SendMixId,
+  type TransportButton,
 } from './mixer'
 
 export const BLE_MIDI_SERVICE = '03b80e5a-ede8-4b33-a751-6ce34ec4c700'
@@ -105,13 +107,24 @@ const BUS: Partial<Record<MixId, [number, number]>> = {
   ...Object.fromEntries(MONITOR_MIXES.map((m, i) => [m, [i, 0x53]])),
 }
 
-/** Recorder buttons (CC 0x57, value 3 = press) and the state the L-20 reports back on B8 57. */
-const REC_BUTTON = { record: 0x09, play: 0x0a, stop: 0x0b }
+/** Channel REC/PLAY button on CC 0x08. */
+const SELECT: Record<RecSelect, number> = { off: 0, rec: 2, play: 1 }
+const SELECT_OF: Record<number, RecSelect> = { 0: 'off', 2: 'rec', 1: 'play' }
+/** Recorder buttons on CC 0x57: [MIDI channel, values]; REC/PLAY/STOP send 3, FF/REW send press (5) and release (4). */
+const REC_BUTTON: Record<TransportButton, [number, number[]]> = {
+  rec: [0x09, [3]],
+  play: [0x0a, [3]],
+  stop: [0x0b, [3]],
+  ff: [0x0d, [5, 4]],
+  rew: [0x0c, [5, 4]],
+}
+/** Recorder state the L-20 reports on B8 57. 4 was seen for a paused recording; paused playback (2?) not captured. */
 const REC_STATE: Record<number, RecorderState> = {
   0: 'stopped',
   1: 'playing',
-  3: 'stopped',
-  4: 'paused',
+  2: 'paused',
+  3: 'standby',
+  4: 'recPaused',
   5: 'recording',
 }
 
@@ -128,7 +141,7 @@ export function encode(cmd: MixerCommand): Msg[] {
       if (p.mute !== undefined) put(CH.mute, +p.mute)
       if (p.solo !== undefined) put(CH.solo, +p.solo)
       if (p.pan !== undefined) put(CH.pan, clamp((p.pan + 100) / 2, 0, 100))
-      if (p.recSelect !== undefined) put(CH.select, p.recSelect ? 2 : 0)
+      if (p.recSelect !== undefined) put(CH.select, SELECT[p.recSelect])
     } else if (cmd.type === 'eq') {
       const p = cmd.patch
       if (p.high !== undefined) put(CH.high, GAIN.to(p.high))
@@ -150,11 +163,9 @@ export function encode(cmd: MixerCommand): Msg[] {
     const bus = BUS[cmd.mix]
     if (bus && cmd.patch.fader !== undefined)
       out.push(cc(bus[0], bus[1], FADER.to(cmd.patch.fader)))
-  } else if (cmd.type === 'recorder' && cmd.patch.state) {
-    const press = (b: number) => out.push(cc(b, 0x57, 3))
-    // the L-20 records with Record (arm) then Play; Play also pauses and resumes
-    if (cmd.patch.state === 'recording') press(REC_BUTTON.record)
-    press(cmd.patch.state === 'stopped' ? REC_BUTTON.stop : REC_BUTTON.play)
+  } else if (cmd.type === 'transport') {
+    const [m, values] = REC_BUTTON[cmd.button]
+    for (const v of values) out.push(cc(m, 0x57, v))
   }
   return out
 }
@@ -193,7 +204,7 @@ export function decode(msg: Msg): MixerCommand | null {
     case CH.pan:
       return channel({ pan: v * 2 - 100 })
     case CH.select:
-      return channel({ recSelect: v === 2 })
+      return channel({ recSelect: SELECT_OF[v] ?? 'off' })
     case CH.high:
       return eq({ high: GAIN.from(v) })
     case CH.midGain:
@@ -256,7 +267,7 @@ export function decodeState(msg: Msg): MixerCommand[] {
         name,
         fader: FADER.from(v(STATE.fader)),
         mute: v(STATE.mute) > 0,
-        recSelect: v(STATE.select) === 2,
+        recSelect: SELECT_OF[v(STATE.select)] ?? 'off',
       }
       if (s < 16) patch.pan = v(STATE.pan) * 2 - 100
       out.push({ type: 'channel', ch, patch })

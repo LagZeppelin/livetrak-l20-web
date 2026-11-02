@@ -4,6 +4,7 @@ import {
   LOW_CUT_MAX_HZ,
   LOW_CUT_MIN_HZ,
   NAME_MAX,
+  NEXT_REC_SELECT,
   type Eq,
   type FxMixId,
 } from '@/lib/mixer'
@@ -12,7 +13,7 @@ import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Icon, Slider, Knob, Label, ValueBox } from '../components/controls'
 import { EqGraph } from '../components/EqGraph'
-import { channelNo, formatHz, isFixedStereo, linkCommand } from '../mixView'
+import { channelNo, REC_SELECT_TITLE, formatHz, isFixedStereo, linkCommand } from '../mixView'
 
 const FLAT: Partial<Eq> = { lowCut: false, low: 0, midGain: 0, midFreq: 1000, high: 0 }
 const gainPos = (db: number) => (db + EQ_GAIN_MAX) / (2 * EQ_GAIN_MAX)
@@ -141,10 +142,13 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             </Btn>
           </div>
           <Btn
-            kind={c.recSelect ? 'rec' : 'plain'}
+            kind={c.recSelect === 'off' ? 'plain' : c.recSelect}
             className="mt-2 h-8"
-            aria-pressed={c.recSelect}
-            onClick={() => dispatch({ type: 'channel', ch, patch: { recSelect: !c.recSelect } })}
+            aria-pressed={c.recSelect !== 'off'}
+            title={REC_SELECT_TITLE[c.recSelect]}
+            onClick={() =>
+              dispatch({ type: 'channel', ch, patch: { recSelect: NEXT_REC_SELECT[c.recSelect] } })
+            }
           >
             Select
           </Btn>
@@ -154,6 +158,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
             levels={fixed ? [meter, meterR] : [meter]}
             label={`Fader ${c.name}`}
+            reset={0}
           />
           {!fixed && (
             <div className="border-line mt-2 border-t pt-2">
@@ -168,6 +173,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
                 }
                 origin={0.5}
                 label={`Pan ${c.name}`}
+                reset={0.5}
                 valueText={formatPan(c.pan)}
               />
             </div>

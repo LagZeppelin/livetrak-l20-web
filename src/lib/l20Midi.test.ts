@@ -28,9 +28,10 @@ test('encodes captured controls, incl. channels 17-20 on the second CC bank', ()
   expect(encode({ type: 'channel', ch: 18, patch: { mute: true } })).toEqual([])
   expect(encode({ type: 'bus', mix: 'main', patch: { fader: 0 } })).toEqual([[0xba, 0x54, 82]])
   expect(encode({ type: 'bus', mix: 'fx2', patch: { effect: 3 } })).toEqual([[0xb1, 0x4e, 3]])
-  expect(encode({ type: 'recorder', patch: { state: 'recording' } })).toEqual([
-    [0xb9, 0x57, 3],
-    [0xba, 0x57, 3],
+  expect(encode({ type: 'transport', button: 'rec' })).toEqual([[0xb9, 0x57, 3]])
+  expect(encode({ type: 'transport', button: 'ff' })).toEqual([
+    [0xbd, 0x57, 5],
+    [0xbd, 0x57, 4],
   ])
 })
 
@@ -39,7 +40,7 @@ test('decodes what it encodes', () => {
     { type: 'channel', ch: 3, patch: { fader: 0 } },
     { type: 'channel', ch: 19, patch: { fader: 0 } },
     { type: 'channel', ch: 1, patch: { pan: 50 } },
-    { type: 'channel', ch: 1, patch: { recSelect: true } },
+    { type: 'channel', ch: 1, patch: { recSelect: 'rec' } },
     { type: 'eq', ch: 1, patch: { high: -4.5 } },
     { type: 'eq', ch: 2, patch: { low: 15 } },
     { type: 'send', ch: 1, mix: 'B', patch: { level: 0 } },
@@ -63,7 +64,7 @@ test('reads the presets back from the captured state reply', () => {
     )
   const send = (n: number, mix: string) =>
     cmds.find((c) => c.type === 'send' && c.ch === n && c.mix === mix)
-  expect(ch(1, 'channel')).toMatchObject({ name: 'CH1', fader: -60, mute: true, recSelect: true })
+  expect(ch(1, 'channel')).toMatchObject({ name: 'CH1', fader: -60, mute: true, recSelect: 'rec' })
   expect(ch(2, 'channel')).toMatchObject({ fader: 0, mute: false })
   expect(ch(3, 'channel')).toMatchObject({ fader: 10, pan: -100 })
   expect(ch(1, 'eq')).toMatchObject({ low: 15, midGain: -15, midFreq: 8000, high: -15 })

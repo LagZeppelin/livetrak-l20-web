@@ -1,5 +1,11 @@
 import { expect, test } from 'vitest'
-import { applyCommand, createMixer, FADER_MIN } from './mixer'
+import {
+  applyCommand,
+  createMixer,
+  FADER_MIN,
+  NEXT_REC_SELECT,
+  type TransportButton,
+} from './mixer'
 
 test('defaults: 20 channels, 17/18 and 19/20 linked, 15-band GEQ', () => {
   const m = createMixer()
@@ -49,4 +55,33 @@ test('names and low cut stay within the hardware limits', () => {
   expect(m.channels[0].name).toBe('Lead Voc')
   expect(m.channels[0].eq).toMatchObject({ lowCut: true, lowCutHz: 600 })
   expect(m.channels[1].eq.lowCutHz).toBe(40)
+})
+
+test('recorder buttons work like the L-20', () => {
+  const press = (m: ReturnType<typeof createMixer>, button: TransportButton) =>
+    applyCommand(m, { type: 'transport', button })
+  let m = press(createMixer(), 'rec')
+  expect(m.recorder.state).toBe('standby')
+  expect(press(m, 'rec').recorder.state).toBe('stopped') // REC twice cancels
+  m = press(m, 'play')
+  expect(m.recorder.state).toBe('recording')
+  m = press(m, 'play')
+  expect(m.recorder.state).toBe('recPaused')
+  m = press(press(m, 'ff'), 'rew')
+  m = press(m, 'rew')
+  expect(m.recorder.position).toBe(0) // never before the start
+  expect(press(m, 'play').recorder.state).toBe('recording')
+  expect(press(m, 'stop').recorder.state).toBe('stopped')
+})
+
+test('channel REC/PLAY cycles off, rec, play', () => {
+  let m = createMixer()
+  for (const want of ['rec', 'play', 'off'] as const) {
+    m = applyCommand(m, {
+      type: 'channel',
+      ch: 1,
+      patch: { recSelect: NEXT_REC_SELECT[m.channels[0].recSelect] },
+    })
+    expect(m.channels[0].recSelect).toBe(want)
+  }
 })
