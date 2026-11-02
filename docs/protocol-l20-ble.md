@@ -79,5 +79,5 @@ Recorder ✅:
 
 ## Meter (`F0 52 00 00 31 04 …`, ca. 15 pro Sekunde)
 
-Byte 6+n = Kanal n (1–20) ✅. Skala ❓ (die App rechnet Wert − 48 = dBFS, mit Testton kalibrieren).
+Byte 6+n = Kanal n (1–20) ✅. Werte sind 0 oder 16…31: Bit 4 = Signal, untere 4 Bit = Stufe 0…15. Die App verteilt die Stufen gleichmäßig auf −48…0 dBFS ❓ (mit Testton gegen die LEDs am Gerät kalibrieren).
 Master- und FX-Meter sind noch nicht zugeordnet ❓.

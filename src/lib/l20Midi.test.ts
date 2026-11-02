@@ -79,11 +79,12 @@ test('reads the presets back from the captured state reply', () => {
 
 test('meters: channel n is byte 6+n; recorder clock counts h, min, s', () => {
   const m = decodeMeters(
-    hex('f052000031040013' + '00'.repeat(17) + '1111' + '00'.repeat(31) + 'f7'),
+    hex('f05200003104001f' + '00'.repeat(17) + '1011' + '00'.repeat(31) + 'f7'),
   )!
-  expect(m[0]).toBe(19 - 48)
+  expect(m[0]).toBe(0)
   expect(m[1]).toBe(-60)
-  expect(m[18]).toBe(17 - 48)
+  expect(m[18]).toBe(-48)
+  expect(m[19]).toBeCloseTo(-44.8)
   const digits: number[] = []
   const last = [8, 9, 10, 11].map((m, i) => decodeClock([0xb0 | m, 0x58, [0, 0, 1, 5][i]!], digits))
   expect(last[3]).toEqual({ type: 'recorder', patch: { position: 65 } })
