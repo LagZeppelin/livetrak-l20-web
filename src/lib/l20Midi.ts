@@ -79,7 +79,11 @@ export function encode(cmd: MixerCommand): Msg[] {
       if (n !== undefined && level !== undefined)
         out.push(cc(m, n, cmd.mix === 'A' ? dbToFader(level) : dbToFx(level)))
     }
-  } else if (cmd.type === 'bus' && cmd.patch.fader !== undefined) {
+  } else if (cmd.type === 'bus') {
+    // FX 1 effect type, value = index in EFFECTS.fx1 (values 1 and 3 seen; FX 2 not captured yet)
+    if (cmd.mix === 'fx1' && cmd.patch.effect !== undefined) out.push(cc(0, 0x4e, cmd.patch.effect))
+  }
+  if (cmd.type === 'bus' && cmd.patch.fader !== undefined) {
     if (cmd.mix === 'main') out.push(cc(0x0a, 0x54, dbToFader(cmd.patch.fader)))
     if (cmd.mix === 'fx1') out.push(cc(0x0c, 0x50, dbToFader(cmd.patch.fader)))
   }
@@ -93,6 +97,7 @@ export function decode(msg: Msg): MixerCommand | null {
   const m = msg[0] & 0x0f
   const [, n, v] = msg as [number, number, number]
   if (m === 0x0a && n === 0x54) return { type: 'bus', mix: 'main', patch: { fader: faderToDb(v) } }
+  if (m === 0 && n === 0x4e) return { type: 'bus', mix: 'fx1', patch: { effect: v } }
   if (m === 0x0c && n === 0x50) return { type: 'bus', mix: 'fx1', patch: { fader: faderToDb(v) } }
   const ch = m + 1
   const channel = (patch: Partial<Channel>): MixerCommand => ({ type: 'channel', ch, patch })

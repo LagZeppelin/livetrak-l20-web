@@ -22,6 +22,7 @@ test('decodes what it encodes', () => {
     { type: 'eq', ch: 1, patch: { high: -4.5 } },
     { type: 'send', ch: 1, mix: 'A', patch: { level: 0 } },
     { type: 'bus', mix: 'fx1', patch: { fader: 0 } },
+    { type: 'bus', mix: 'fx1', patch: { effect: 3 } },
   ] as const)
     expect(decode(encode(cmd)[0]!)).toEqual(cmd)
   expect(decode([0xb0, 0x3c, 0])).toEqual({ type: 'channel', ch: 1, patch: { fader: -60 } })
