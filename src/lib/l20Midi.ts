@@ -11,6 +11,7 @@ import {
   type Eq,
   type MixerCommand,
   type SendMixId,
+  type RecSelect,
 } from './mixer'
 
 export const BLE_MIDI_SERVICE = '03b80e5a-ede8-4b33-a751-6ce34ec4c700'
@@ -53,6 +54,8 @@ const midiCh = (ch: number) => (ch >= 1 && ch <= 16 ? ch - 1 : null)
 
 const SEND_CC: Partial<Record<SendMixId, number>> = { fx1: 0x34, fx2: 0x36, A: 0x53 }
 
+const REC_SELECT_CC: Record<RecSelect, number> = { off: 0, rec: 2, play: 1 }
+
 /** MIDI messages for a command; parts the L-20 mapping doesn't know yet are left out. */
 export function encode(cmd: MixerCommand): Msg[] {
   const out: Msg[] = []
@@ -65,7 +68,7 @@ export function encode(cmd: MixerCommand): Msg[] {
       if (p.mute !== undefined) out.push(cc(m, 0x30, +p.mute))
       if (p.solo !== undefined) out.push(cc(m, 0x32, +p.solo))
       if (p.pan !== undefined) out.push(cc(m, 0x0c, clamp((p.pan + 100) / 2, 0, 100)))
-      if (p.recSelect !== undefined) out.push(cc(m, 0x08, p.recSelect ? 2 : 0))
+      if (p.recSelect !== undefined) out.push(cc(m, 0x08, REC_SELECT_CC[p.recSelect]))
     } else if (cmd.type === 'eq') {
       const p = cmd.patch
       if (p.high !== undefined) out.push(cc(m, 0x14, dbToEq(p.high)))
@@ -107,7 +110,7 @@ export function decode(msg: Msg): MixerCommand | null {
     case 0x0c:
       return channel({ pan: v * 2 - 100 })
     case 0x08:
-      return channel({ recSelect: v === 2 })
+      return channel({ recSelect: v === 2 ? 'rec' : v === 1 ? 'play' : 'off' })
     case 0x14:
       return eq({ high: eqToDb(v) })
     case 0x2e:

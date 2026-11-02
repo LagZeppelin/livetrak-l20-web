@@ -18,7 +18,7 @@ test('decodes what it encodes', () => {
   for (const cmd of [
     { type: 'channel', ch: 3, patch: { fader: 0 } },
     { type: 'channel', ch: 1, patch: { pan: 50 } },
-    { type: 'channel', ch: 1, patch: { recSelect: true } },
+    { type: 'channel', ch: 1, patch: { recSelect: 'rec' } },
     { type: 'eq', ch: 1, patch: { high: -4.5 } },
     { type: 'send', ch: 1, mix: 'A', patch: { level: 0 } },
     { type: 'bus', mix: 'fx1', patch: { fader: 0 } },
