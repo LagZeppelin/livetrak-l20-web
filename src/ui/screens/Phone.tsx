@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import type { Device } from '@/lib/devices'
 import type { MonitorMixId } from '@/lib/mixer'
 import { dbToPos, formatDb, posToDb } from '@/lib/scale'
 import { cn } from '@/lib/utils'
+import { myDeviceId, useDevicesStore } from '@/state/devicesStore'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, HMeter, Slider, Icon, Label, StatusPill, ValueBox } from '../components/controls'
 import { channelGroups, mixLevel, sendLevel, type ChannelGroup } from '../mixView'
@@ -9,8 +11,62 @@ import { channelGroups, mixLevel, sendLevel, type ChannelGroup } from '../mixVie
 const toPos = (db: number) => 1 - dbToPos(db)
 const ZERO = toPos(0)
 
+/** A phone opened via ?phone: name first, then wait until the admin assigns a mix. */
+export function PhoneEntry() {
+  const me = useDevicesStore((s) => s.devices.find((d) => d.id === myDeviceId))
+  if (me?.mix) return <Phone mix={me.mix} me={me} />
+  return (
+    <div className="mx-auto flex h-dvh max-w-md flex-col justify-center px-6">
+      {me ? <Waiting me={me} /> : <Join />}
+    </div>
+  )
+}
+
+function Join() {
+  const dispatch = useDevicesStore((s) => s.dispatch)
+  const [name, setName] = useState('')
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        dispatch({ type: 'join', id: myDeviceId, name })
+      }}
+    >
+      <h1 className="text-4xl font-bold">Hallo!</h1>
+      <p className="text-fg2 mt-2 text-lg">
+        Wie heißt du? Der Name erscheint am iPad, damit dir dort dein Mix zugeteilt wird.
+      </p>
+      <input
+        autoFocus
+        maxLength={20}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="z. B. Lisa (Bass)"
+        aria-label="Dein Name"
+        className="border-line bg-raised focus:border-fg2 mt-6 h-14 w-full rounded border px-4 text-xl outline-none"
+      />
+      <Btn kind="on" type="submit" disabled={!name.trim()} className="mt-4 h-14 w-full text-lg">
+        Weiter
+      </Btn>
+    </form>
+  )
+}
+
+function Waiting({ me }: { me: Device }) {
+  return (
+    <div className="text-center">
+      <div className="border-fg3 border-t-fg mx-auto size-12 animate-spin rounded-full border-4" />
+      <h1 className="mt-6 text-3xl font-bold">Hallo {me.name}</h1>
+      <p className="text-fg2 mt-3 text-lg">
+        Warte auf deinen Mix. Am iPad unter <b className="text-fg">Handys</b> wird dir einer
+        zugeteilt, dann geht es hier von selbst weiter.
+      </p>
+    </div>
+  )
+}
+
 /** A musician's phone: their own monitor mix, portrait. */
-export function Phone({ mix }: { mix: MonitorMixId }) {
+export function Phone({ mix, me }: { mix: MonitorMixId; me?: Device }) {
   const mixer = useMixerStore((s) => s.mixer)
   const status = useMixerStore((s) => s.status)
   const visible = useMixerStore((s) => s.visibleChannels)
@@ -26,7 +82,10 @@ export function Phone({ mix }: { mix: MonitorMixId }) {
     <div className="mx-auto flex h-dvh max-w-md flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-[max(env(safe-area-inset-top),24px)]">
         <header className="flex items-center justify-between py-4">
-          <h1 className="text-4xl font-bold">Mix {mix}</h1>
+          <div>
+            <h1 className="text-4xl font-bold">Mix {mix}</h1>
+            {me && <p className="text-fg2 text-lg">{me.name}</p>}
+          </div>
           <StatusPill connected={status === 'connected'}>
             {status === 'connected' ? 'VERBUNDEN' : 'GETRENNT'}
           </StatusPill>
@@ -120,7 +179,16 @@ export function Phone({ mix }: { mix: MonitorMixId }) {
           >
             M
           </Btn>
-          <span className="text-fg2 text-lg">Mix stumm</span>
+          <span className="text-fg2 text-lg whitespace-nowrap">Mix stumm</span>
+          {me?.foh && (
+            // shortcut: the full view is the iPad layout; a phone layout of it comes later
+            <a
+              href="./"
+              className="border-line ml-auto flex h-12 items-center rounded border px-4 text-base whitespace-nowrap"
+            >
+              Ganzes Pult
+            </a>
+          )}
         </div>
       </footer>
     </div>
