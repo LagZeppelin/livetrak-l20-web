@@ -162,6 +162,7 @@ function Strip({
         onChange={setLevel}
         levels={fixed ? [meter, meterR] : [meter]}
         label={`Fader ${c.name}`}
+        reset={0}
       />
       {!fixed && (
         <>
@@ -180,6 +181,7 @@ function Strip({
                 }
                 origin={0.5}
                 label={`Pan ${c.name}`}
+                reset={0.5}
                 valueText={formatPan(c.pan)}
               />
             )}

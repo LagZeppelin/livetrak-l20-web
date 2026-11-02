@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { FADER_MIN } from '@/lib/mixer'
 import { cn } from '@/lib/utils'
 import { dbToPos, formatDb, posToDb, SCALE_MARKS } from '@/lib/scale'
 
@@ -76,12 +77,15 @@ export function Fader({
   levels,
   label,
   handle = 'lg',
+  reset = FADER_MIN,
 }: {
   db: number
   onChange: (db: number) => void
   levels: (number | undefined)[]
   label: string
   handle?: 'sm' | 'lg'
+  /** dB a double tap jumps to: -∞ for buses and sends, 0 dB for channel faders. */
+  reset?: number
 }) {
   return (
     <div className="relative flex min-h-0 flex-1 justify-between px-1 py-3.5">
@@ -94,6 +98,7 @@ export function Fader({
         handle={handle}
         pos={dbToPos(db)}
         onPos={(p) => onChange(posToDb(p))}
+        reset={dbToPos(reset)}
         label={label}
         valueText={`${formatDb(db)} dB`}
       />
@@ -107,7 +112,7 @@ export function Fader({
             )}
             style={{ top: `${dbToPos(m) * 100}%` }}
           >
-            {m > 0 ? `+${m}` : m}
+            {m > 0 ? `+${m}` : m <= FADER_MIN ? '-∞' : m}
           </span>
         ))}
       </div>
@@ -134,6 +139,7 @@ export function Slider({
   handle = 'sm',
   label,
   valueText,
+  reset,
 }: {
   pos: number
   onPos: (pos: number) => void
@@ -143,6 +149,8 @@ export function Slider({
   handle?: 'sm' | 'lg'
   label: string
   valueText: string
+  /** Position a double tap jumps to; none means no reset. */
+  reset?: number
 }) {
   const drag = useDrag(pos, onPos, axis)
   const y = axis === 'y'
@@ -150,6 +158,7 @@ export function Slider({
   return (
     <div
       {...drag}
+      onDoubleClick={reset === undefined ? undefined : () => onPos(reset)}
       role="slider"
       aria-label={label}
       aria-orientation={y ? 'vertical' : 'horizontal'}

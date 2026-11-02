@@ -158,6 +158,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             onChange={(db) => dispatch({ type: 'channel', ch, patch: { fader: db } })}
             levels={fixed ? [meter, meterR] : [meter]}
             label={`Fader ${c.name}`}
+            reset={0}
           />
           {!fixed && (
             <div className="border-line mt-2 border-t pt-2">
@@ -172,6 +173,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
                 }
                 origin={0.5}
                 label={`Pan ${c.name}`}
+                reset={0.5}
                 valueText={formatPan(c.pan)}
               />
             </div>

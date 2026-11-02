@@ -1,10 +1,25 @@
 import { useRef, type ReactNode } from 'react'
-import { MONITOR_MIXES, type RecorderState, type TransportButton } from '@/lib/mixer'
-import { formatTime } from '@/lib/scale'
+import { useShallow } from 'zustand/react/shallow'
+import {
+  MONITOR_MIXES,
+  type MonitorMixId,
+  type RecorderState,
+  type TransportButton,
+} from '@/lib/mixer'
+import { dbToPos, formatDb, formatTime, posToDb } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
-import { Btn, Icon, Label, Meter, StatusPill } from '../components/controls'
-import type { Screen, View } from '../mixView'
+import {
+  Btn,
+  HMeter,
+  Icon,
+  Label,
+  Meter,
+  Slider,
+  StatusPill,
+  ValueBox,
+} from '../components/controls'
+import { mixLevel, type Screen, type View } from '../mixView'
 
 export function Shell({
   screen,
@@ -70,9 +85,64 @@ export function Shell({
             ))}
           </select>
         </label>
+        {screen === 'main' && <MixOverview onOpen={onScreen} />}
         <div className="divide-line flex min-h-0 flex-1 divide-x">{aside}</div>
       </aside>
     </div>
+  )
+}
+
+/** Compact Mix A–F meters under the dropdown; tap opens line faders per mix, the name opens the mix. */
+function MixOverview({ onOpen }: { onOpen: (mix: MonitorMixId) => void }) {
+  const levels = useMixerStore(
+    useShallow((s) => MONITOR_MIXES.map((m) => mixLevel(s.mixer, s.meters, m))),
+  )
+  const monitors = useMixerStore((s) => s.mixer.monitors)
+  const dispatch = useMixerStore((s) => s.dispatch)
+  return (
+    <details className="relative mx-3 mb-3">
+      <summary
+        aria-label="Mixe A–F"
+        className="border-line grid cursor-pointer list-none grid-cols-6 rounded border bg-[rgb(22_25_32/0.55)] px-1 py-1.5"
+      >
+        {MONITOR_MIXES.map((m, i) => (
+          <div key={m} className="flex flex-col items-center gap-1">
+            <span
+              className={cn('font-mono text-[11px]', monitors[m].mute ? 'text-bad' : 'text-fg2')}
+            >
+              {m}
+            </span>
+            <div className="flex h-5">
+              <Meter level={levels[i]} />
+            </div>
+          </div>
+        ))}
+      </summary>
+      <div className="bg-surf absolute top-full right-0 z-20 mt-2 w-80 space-y-3 rounded-lg border border-white/12 p-3 shadow-[0_24px_64px_rgb(0_0_0/0.7)]">
+        {MONITOR_MIXES.map((m, i) => {
+          const db = monitors[m].fader
+          return (
+            <div key={m}>
+              <div className="flex items-center justify-between">
+                <button type="button" className="text-sm font-semibold" onClick={() => onOpen(m)}>
+                  Mix {m} <span className="text-fg2">›</span>
+                </button>
+                <ValueBox className="w-[68px]">{formatDb(db)}</ValueBox>
+              </div>
+              <Slider
+                pos={1 - dbToPos(db)}
+                onPos={(p) => dispatch({ type: 'bus', mix: m, patch: { fader: posToDb(1 - p) } })}
+                mark={1 - dbToPos(0)}
+                reset={0}
+                label={`Ausgang Mix ${m}`}
+                valueText={`${formatDb(db)} dB`}
+              />
+              <HMeter level={levels[i]} />
+            </div>
+          )
+        })}
+      </div>
+    </details>
   )
 }
 
@@ -154,7 +224,7 @@ function TopBar() {
           </span>
           <Icon name="caret" className="text-fg2 size-4" />
         </summary>
-        <div className="card bg-surf absolute top-11 left-1/2 z-20 grid w-56 -translate-x-1/2 grid-cols-2 gap-2 p-2">
+        <div className="bg-surf absolute top-11 left-1/2 z-20 grid w-56 -translate-x-1/2 grid-cols-2 gap-2 rounded-lg border border-white/12 p-2 shadow-[0_24px_64px_rgb(0_0_0/0.7)]">
           <Btn
             kind={['standby', 'recording', 'recPaused'].includes(recorder.state) ? 'rec' : 'plain'}
             className={cn('h-11', recorder.state === 'recPaused' && 'animate-pulse')}
