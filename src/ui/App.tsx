@@ -4,12 +4,13 @@ import { useMixerStore } from '@/state/mixerStore'
 import { ChannelDetail } from './screens/ChannelDetail'
 import { MasterDetail } from './screens/MasterDetail'
 import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
-import { Phone } from './screens/Phone'
+import { Phone, PhoneEntry } from './screens/Phone'
 import { isFixedStereo, type View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
 
-// shortcut: the phone view is picked by URL (?phone=C); the Pi will hand out the mix per phone later
-const phoneMix = new URLSearchParams(location.search).get('phone')?.toUpperCase() as MonitorMixId
+// ?phone = a musician's phone (joins, waits for the admin); ?phone=C skips that for testing
+const phoneParam = new URLSearchParams(location.search).get('phone')
+const phoneMix = phoneParam?.toUpperCase() as MonitorMixId
 
 export default function App() {
   const connect = useMixerStore((s) => s.connect)
@@ -18,7 +19,8 @@ export default function App() {
     // Bluetooth may only start from a click, so the real mixer connects via the status pill
     if (source === 'demo') void connect()
   }, [connect, source])
-  return MONITOR_MIXES.includes(phoneMix) ? <Phone mix={phoneMix} /> : <Ipad />
+  if (MONITOR_MIXES.includes(phoneMix)) return <Phone mix={phoneMix} />
+  return phoneParam === null ? <Ipad /> : <PhoneEntry />
 }
 
 function Ipad() {

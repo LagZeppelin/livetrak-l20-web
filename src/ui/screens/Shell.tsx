@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   MONITOR_MIXES,
@@ -8,6 +8,7 @@ import {
 } from '@/lib/mixer'
 import { dbToPos, formatDb, formatTime, posToDb } from '@/lib/scale'
 import { cn } from '@/lib/utils'
+import { useDevicesStore } from '@/state/devicesStore'
 import { useMixerStore } from '@/state/mixerStore'
 import {
   Btn,
@@ -20,6 +21,7 @@ import {
   ValueBox,
 } from '../components/controls'
 import { mixLevel, type Screen, type View } from '../mixView'
+import { AdminDialog, ConnectSnackbar } from './Admin'
 
 export function Shell({
   screen,
@@ -52,16 +54,8 @@ export function Shell({
             </Btn>
           ))}
         </div>
-        <Label className="mt-auto mb-2">Phones</Label>
-        <a
-          href={`?phone=${MONITOR_MIXES.includes(screen as never) ? screen : 'A'}`}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Handy-Ansicht öffnen"
-          className="border-line flex h-12 w-full items-center justify-center rounded border bg-[rgb(22_25_32/0.55)]"
-        >
-          <Icon name="phone" className="size-[22px]" />
-        </a>
+        <Label className="mt-auto mb-2">Handys</Label>
+        <PhonesButton />
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
@@ -89,6 +83,30 @@ export function Shell({
         <div className="divide-line flex min-h-0 flex-1 divide-x">{aside}</div>
       </aside>
     </div>
+  )
+}
+
+/** Opens the admin menu; the badge counts phones waiting for a mix. */
+function PhonesButton() {
+  const [open, setOpen] = useState(false)
+  const waiting = useDevicesStore((s) => s.devices.filter((d) => !d.mix).length)
+  return (
+    <>
+      <Btn
+        aria-label="Handys verwalten"
+        className="relative h-12 w-full"
+        onClick={() => setOpen(true)}
+      >
+        <Icon name="phone" className="size-[22px]" />
+        {waiting > 0 && (
+          <span className="bg-warn text-canvas absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full font-mono text-xs font-semibold">
+            {waiting}
+          </span>
+        )}
+      </Btn>
+      {open && <AdminDialog onClose={() => setOpen(false)} />}
+      <ConnectSnackbar paused={open} />
+    </>
   )
 }
 

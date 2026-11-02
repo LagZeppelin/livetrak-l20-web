@@ -20,13 +20,14 @@ Stand: 2026-11-01. Reihenfolge = Vorschlag, wird nach Rons User-Flows angepasst.
 6. ✅ Kanal-Übersicht (iPad): Main-Mix mit FX-Returns und Master, Monitor-Mix A–F
 7. ✅ Kanal-Detail mit EQ-Kurve (SVG), Low Cut, FX-Sends, Pan, Phase
 8. ✅ Musiker-Ansicht (`?phone=C`): eigener Mix, Kanalauswahl, Stereo-Paare als eine Zeile
-   8a. ✅ Master-GEQ (15 Bänder), Effekt-Auswahl FX1/2 (echte L-20-Effekte), Low Cut 40–600 Hz. Offen: Szenen benennen, Phones-Anzeige (kommt mit dem Pi)
+   8a. ✅ Master-GEQ (15 Bänder), Effekt-Auswahl FX1/2 (echte L-20-Effekte), Low Cut 40–600 Hz. Offen: Szenen benennen
    8b. Aus dem Handbuch der L-20 Control App (v2.0) und der L-20-Bedienungsanleitung, noch nicht umgesetzt (Rons Entscheidung nötig): - FX-Parameter 1/2 pro Effekt (Tone/Decay, Time/Feedback, Rate). Im Datenmodell vorhanden, noch ohne UI - Monitor-Mixe: Pre/Post entfernt (Ron, 2026-11-01). Am L-20 hat jeder Mix A–F auch eigene FX-Return-Fader (bei uns bisher keine FX im Monitor-Mix). Pro Ausgang wählbar: Master oder eigener Mix - Mix kopieren (Ausgang halten, Ziel antippen), EFX-Return-Mute, G-EQ an/aus, Szene löschen (Reset), Doppeltipp auf Fader = Reset - Recorder: Overdub, Rückspulen/Vorspulen, Projektname/-wechsel, Tempo. Kompressor und Gain nur am Gerät, nicht per App - Remote-Geräte sehen in der Original-App nur Pre-Fader-Meter
 
 ## Phase 3 – Echte Hardware
 
 9. Protocol Discovery: BLE-MIDI-Traffic des BTA-1 mitschneiden und dokumentieren
 10. `BleMixerTransport` im Node-Server auf dem Pi
+    10b. ✅ Handys (Userflow von Ron freigegeben 2026-11-02): Handy öffnet `?phone` → Begrüßung mit Home-Bildschirm-Hinweis (bis „Nicht mehr anzeigen“) → Name → freien Mix A–F wählen (vergebene ausgegraut) → eigener Mix; Handy merkt sich Name und Mix. iPad: Knopf „Handys“ (Admin) mit Übersicht A–F, Mix umverteilen/wegnehmen, Recht „Ganzes Pult“, Entfernen; Snackbar „… hat sich mit Mix C verbunden“. Bis zum Pi nur innerhalb eines Browsers (localStorage, Test-Handys per `?phone&test=x`). Pi-Phase: WLAN mit Captive Portal → Startseite mit Auswahl Mixer/Licht (+ „In Safari öffnen“ auf iPhone), Geräte-ID per Cookie, Rechte auf dem Pi durchsetzen, Admin-PIN, Handy-Layout der Pult-Ansicht
 11. Pi als Zentrale: Node-Server liefert Web-App + WebSocket aus, iPad und Phones als Clients (`WebSocketMixerTransport`)
 12. Pi-Setup: Autostart, Updates automatisch aus GitHub
 
