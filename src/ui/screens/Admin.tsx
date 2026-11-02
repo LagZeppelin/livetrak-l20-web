@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
 import { cn } from '@/lib/utils'
 import { useDevicesStore } from '@/state/devicesStore'
@@ -50,7 +51,7 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
               <Icon name="phone" className="text-fg2 size-5" />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-base font-semibold">{d.name}</div>
-                {!d.mix && <div className="text-warn text-xs">wartet auf einen Mix</div>}
+                {!d.mix && <div className="text-warn text-xs">wählt gerade einen Mix</div>}
               </div>
               <select
                 aria-label={`Mix für ${d.name}`}
@@ -62,7 +63,7 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
                     mix: (e.target.value || null) as MonitorMixId | null,
                   })
                 }
-                className="border-line bg-raised h-10 rounded border px-2 text-sm"
+                className="border-line bg-raised h-10 w-44 rounded border px-2 text-sm"
               >
                 <option value="">kein Mix</option>
                 {MONITOR_MIXES.map((m) => {
@@ -97,11 +98,44 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
 
         <div className="border-line mt-4 flex items-center justify-between border-t pt-3">
           <Label>Zum Testen am Laptop</Label>
-          <a href="?phone" target="_blank" rel="noreferrer" className="text-sm underline">
+          <button
+            type="button"
+            className="text-sm underline"
+            onClick={() => window.open(`?phone&test=${crypto.randomUUID().slice(0, 5)}`)}
+          >
             Test-Handy in neuem Tab öffnen
-          </a>
+          </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** "Lisa hat sich mit Mix C verbunden": shown on the iPad when a phone gets a mix while the admin menu is closed. */
+export function ConnectSnackbar({ paused }: { paused: boolean }) {
+  const [text, setText] = useState<string | null>(null)
+  useEffect(() => {
+    if (paused) return
+    return useDevicesStore.subscribe((s, prev) => {
+      const d = s.devices.find(
+        (d) => d.mix && prev.devices.find((p) => p.id === d.id)?.mix !== d.mix,
+      )
+      if (d) setText(`${d.name} hat sich mit Mix ${d.mix} verbunden`)
+    })
+  }, [paused])
+  useEffect(() => {
+    if (!text) return
+    const t = setTimeout(() => setText(null), 4000)
+    return () => clearTimeout(t)
+  }, [text])
+  if (!text) return null
+  return (
+    <div
+      role="status"
+      className="bg-surf fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-white/12 px-4 py-3 shadow-[0_24px_64px_rgb(0_0_0/0.7)]"
+    >
+      <Icon name="phone" className="text-good size-5" />
+      <span className="text-base">{text}</span>
     </div>
   )
 }

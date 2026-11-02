@@ -21,7 +21,7 @@ import {
   ValueBox,
 } from '../components/controls'
 import { mixLevel, type Screen, type View } from '../mixView'
-import { AdminDialog } from './Admin'
+import { AdminDialog, ConnectSnackbar } from './Admin'
 
 export function Shell({
   screen,
@@ -105,6 +105,7 @@ function PhonesButton() {
         )}
       </Btn>
       {open && <AdminDialog onClose={() => setOpen(false)} />}
+      <ConnectSnackbar paused={open} />
     </>
   )
 }

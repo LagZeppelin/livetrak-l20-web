@@ -27,3 +27,14 @@ test('a mix belongs to one phone: assigning it again frees the old one', () => {
   ])
   expect(applyDeviceCommand(d, { type: 'remove', id: 'b' }).map((x) => x.id)).toEqual(['a'])
 })
+
+test('a phone can only claim a free mix', () => {
+  const d = run(
+    { type: 'join', id: 'a', name: 'Lisa' },
+    { type: 'join', id: 'b', name: 'Tom' },
+    { type: 'claim', id: 'a', mix: 'A' },
+    { type: 'claim', id: 'b', mix: 'A' },
+    { type: 'claim', id: 'a', mix: 'B' },
+  )
+  expect(d.map((x) => x.mix)).toEqual(['B', null])
+})

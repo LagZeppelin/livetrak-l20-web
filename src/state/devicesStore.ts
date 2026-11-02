@@ -24,11 +24,14 @@ globalThis.addEventListener?.('storage', (e) => {
   if (e.key === KEY) void useDevicesStore.persist.rehydrate()
 })
 
-// shortcut: one id per browser tab so test phones in tabs differ; the Pi hands out a lasting id later
+// ?test=… gives a test phone its own id, so several phones fit in tabs of one browser
+const testId = new URLSearchParams(globalThis.location?.search).get('test')
+// shortcut: the id lives in this browser only; the Pi hands out a lasting id (cookie) later
 export const myDeviceId: string =
-  globalThis.sessionStorage?.getItem('l20-device-id') ??
+  testId ??
+  globalThis.localStorage?.getItem('l20-device-id') ??
   (() => {
     const id = crypto.randomUUID()
-    globalThis.sessionStorage?.setItem('l20-device-id', id)
+    globalThis.localStorage?.setItem('l20-device-id', id)
     return id
   })()
