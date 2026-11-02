@@ -92,6 +92,7 @@ function TopBar() {
   const status = useMixerStore((s) => s.status)
   const dispatch = useMixerStore((s) => s.dispatch)
   const connect = useMixerStore((s) => s.connect)
+  const source = useMixerStore((s) => s.source)
   const rec = recorder.state === 'recording'
   const setRec = (state: RecorderState) => dispatch({ type: 'recorder', patch: { state } })
 
@@ -171,13 +172,28 @@ function TopBar() {
         </div>
       </details>
 
-      <button type="button" onClick={() => void connect()} disabled={status !== 'disconnected'}>
+      <a
+        href={source === 'demo' ? '?l20' : '?'}
+        className="text-fg3 text-xs underline"
+        title="Zwischen Demo-Mixer und echtem L-20 wechseln"
+      >
+        {source === 'demo' ? 'Demo · zum echten L-20' : 'Echter L-20 · zur Demo'}
+      </a>
+      <button
+        type="button"
+        onClick={() => connect().catch((e: Error) => alert(e.message))}
+        disabled={status !== 'disconnected'}
+      >
         <StatusPill connected={status === 'connected'}>
           {status === 'connected'
-            ? 'L-20 VERBUNDEN'
+            ? source === 'demo'
+              ? 'DEMO VERBUNDEN'
+              : 'L-20 VERBUNDEN'
             : status === 'connecting'
               ? 'VERBINDE…'
-              : 'GETRENNT · NEU VERBINDEN'}
+              : source === 'demo'
+                ? 'GETRENNT · NEU VERBINDEN'
+                : 'MIT L-20 VERBINDEN'}
         </StatusPill>
       </button>
     </header>

@@ -13,9 +13,11 @@ const phoneMix = new URLSearchParams(location.search).get('phone')?.toUpperCase(
 
 export default function App() {
   const connect = useMixerStore((s) => s.connect)
+  const source = useMixerStore((s) => s.source)
   useEffect(() => {
-    void connect()
-  }, [connect])
+    // Bluetooth may only start from a click, so the real mixer connects via the status pill
+    if (source === 'demo') void connect()
+  }, [connect, source])
   return MONITOR_MIXES.includes(phoneMix) ? <Phone mix={phoneMix} /> : <Ipad />
 }
 

@@ -1,10 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { applyCommand, createMixer, type Mixer, type MixerCommand } from '@/lib/mixer'
+import { BleMidiTransport } from '@/transport/BleMidiTransport'
 import { MockMixerTransport } from '@/transport/MockMixerTransport'
 import type { ConnectionStatus, IMixerTransport } from '@/transport/types'
 
 interface MixerState {
+  /** 'demo' = built-in fake mixer, 'l20' = real L-20 over Bluetooth (needs a click to connect). */
+  source: 'demo' | 'l20'
   status: ConnectionStatus
   mixer: Mixer
   /** Latest meter levels (dBFS), channels 1–20, main L/R, FX1 L/R, FX2 L/R. Kept apart from mixer so meters don't churn it. */
@@ -18,8 +21,10 @@ interface MixerState {
   toggleVisible: (ch: number) => void
 }
 
-// shortcut: mock is hard-wired; pick WebSocket (to the Pi) or mock at runtime once those transports exist
-const transport: IMixerTransport = new MockMixerTransport()
+// shortcut: picked once per page load by URL (?l20 = real mixer); the WebSocket client to the Pi joins here later
+const source = new URLSearchParams(globalThis.location?.search).has('l20') ? 'l20' : 'demo'
+const transport: IMixerTransport =
+  source === 'l20' ? new BleMidiTransport() : new MockMixerTransport()
 
 /** The command for the stereo partner, or null. Pan is mirrored; name, color and phase stay per channel. */
 export function partnerCommand(mixer: Mixer, cmd: MixerCommand): MixerCommand | null {
@@ -35,6 +40,7 @@ export function partnerCommand(mixer: Mixer, cmd: MixerCommand): MixerCommand | 
 export const useMixerStore = create<MixerState>()(
   persist(
     (set, get) => ({
+      source,
       status: 'disconnected',
       mixer: createMixer(),
       meters: [],

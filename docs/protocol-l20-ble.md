@@ -31,26 +31,27 @@ Dekodieren: `python3 tools/decode-pklg.py <datei.pklg>` (Meter ausgeblendet, `--
 
 ## Steuerbefehle (Control Change)
 
-Der **MIDI-Kanal ist der Mixer-Kanal**: `B0` = Kanal 1, `B1` = Kanal 2 usw.
+Der **MIDI-Kanal ist der Mixer-Kanal**: `B0` = Kanal 1, `B1` = Kanal 2 ✅. Kanal 3–16 = `B2`–`BF` ist vermutet ❓. Für 17–20 reichen 16 MIDI-Kanäle nicht, die Zuordnung ist offen ❓ (die App sendet dort noch nichts).
 Werte sind 7-Bit (0–127).
 
-| Funktion           | Nachricht                              | Werte                                     | Status                                                                    |
-| ------------------ | -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------- |
-| Kanal-Fader        | `Bn 3C vv`                             | 0 (−∞) … 120 (Max), **0 dB = 82**         | ✅ (dB-Tabelle ❓)                                                        |
-| Mute               | `Bn 30 vv`                             | 1 = an, 0 = aus                           | ✅                                                                        |
-| Solo               | `Bn 32 vv`                             | 1 = an, 0 = aus                           | ✅                                                                        |
-| Pan                | `Bn 0C vv`                             | 0 = L, 50 = Mitte, 100 = R                | ✅                                                                        |
-| EQ High            | `Bn 14 vv`                             | 0 … 60 (Mitte vermutlich 30 = 0 dB ❓)    | ✅                                                                        |
-| Low Cut (Poti)     | `Bn 2E vv`                             | 0 = aus … 56 = 600 Hz ❓                  | ✅                                                                        |
-| Send FX 1          | `Bn 34 vv`                             | 0 … 60                                    | ✅                                                                        |
-| Send FX 2          | `Bn 36 vv`                             | 0 … 60                                    | ✅                                                                        |
-| Send Monitor-Mix A | `Bn 53 vv`                             | 0 … 118 (Fader-Skala wie oben ❓)         | ✅ für A, B–F ❓                                                          |
-| Rec/Play-Select    | `Bn 08 vv`                             | 0 = aus, 2 = Rec (rot), 1 = Play (orange) | ✅ (1 lehnt das Gerät ab, wenn keine Aufnahme da ist: es antwortet mit 0) |
-| Master-Fader       | `BA 54 vv`                             | 0 … 120, 0 dB = 82                        | ✅                                                                        |
-| FX-1-Return-Fader  | `BC 50 vv`                             | 0 … 120                                   | ✅                                                                        |
-| FX-1-Effekttyp     | `B0 4E vv`                             | Typ-Nummer (gesehen: 1, 3)                | ✅; das Gerät meldet danach Parameter auf `B4/B5/BC/BD 4E` ❓             |
-| Recorder-Taste     | `B9 57 03`, `BA 57 03`                 | Antwort `B8 57 00`, `B9 59 00`            | ❓ (ohne SD-Karte getestet)                                               |
-| ?                  | RX `B2 31 01/00` (19:41:13 / 19:42:14) |                                           | ❓ evtl. Ansichtswechsel Master                                           |
+| Funktion           | Nachricht              | Werte                                            | Status                                                                    |
+| ------------------ | ---------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| Kanal-Fader        | `Bn 3C vv`             | 0 (−∞) … 120 (Max), **0 dB = 82**                | ✅ (dB-Tabelle ❓)                                                        |
+| Mute               | `Bn 30 vv`             | 1 = an, 0 = aus                                  | ✅                                                                        |
+| Solo               | `Bn 32 vv`             | 1 = an, 0 = aus                                  | ✅                                                                        |
+| Pan                | `Bn 0C vv`             | 0 = L, 50 = Mitte, 100 = R                       | ✅                                                                        |
+| EQ High            | `Bn 14 vv`             | 0 … 60, ganz runter = 0, vermutlich 30 = 0 dB ❓ | ✅                                                                        |
+| Low Cut (Poti)     | `Bn 2E vv`             | 0 = aus … 56 = 600 Hz ❓                         | ✅                                                                        |
+| Send FX 1          | `Bn 34 vv`             | 0 … 60                                           | ✅                                                                        |
+| Send FX 2          | `Bn 36 vv`             | 0 … 60                                           | ✅                                                                        |
+| Send Monitor-Mix A | `Bn 53 vv`             | 0 … 118 (Fader-Skala wie oben ❓)                | ✅ für A, B–F ❓                                                          |
+| Rec/Play-Select    | `Bn 08 vv`             | 0 = aus, 2 = Rec (rot), 1 = Play (orange)        | ✅ (1 lehnt das Gerät ab, wenn keine Aufnahme da ist: es antwortet mit 0) |
+| Master-Fader       | `BA 54 vv`             | 0 … 120, 0 dB = 82                               | ✅                                                                        |
+| FX-1-Return-Fader  | `BC 50 vv`             | 0 … 120                                          | ✅                                                                        |
+| FX-1-Effekttyp     | `B0 4E vv`             | Typ-Nummer (gesehen: 1, 3)                       | ✅; das Gerät meldet danach Parameter auf `B4/B5/BC/BD 4E` ❓             |
+| Recorder-Taste     | `B9 57 03`, `BA 57 03` | Antwort `B8 57 00`, `B9 59 00`                   | ❓ Tasten im Hauptbildschirm, ohne SD-Karte mehrfach gedrückt             |
+| Ansicht gewechselt | RX `B2 31 01/00`       |                                                  | ❓ Ron hat da die Ansicht in der App gewechselt                           |
+| Master am Gerät    | RX `BA 54 vv`          | wie Master-Fader                                 | ✅                                                                        |
 
 Noch nicht gesehen: EQ Low, EQ Mid (Gain/Freq), Phase, Mid-Frequenz, Szenen laden/speichern,
 FX 2 Return, Monitor-Mix B–F, Master-GEQ, Stereo-Link, Kanalnamen schreiben.
