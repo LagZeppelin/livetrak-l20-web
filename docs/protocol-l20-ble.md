@@ -1,74 +1,83 @@
-# L-20 Bluetooth-Protokoll (Stand: Mitschnitt vom 2026-11-02)
+# L-20 Bluetooth-Protokoll
 
-Quelle: PacketLogger-Mitschnitt von Ron (iPad Air, App „L-20 Control“, L-20 Firmware 1.23 mit BTA-1),
-Datei `/mnt/project-files/mitschnitte/2026-11-02-l20.pklg`, Zeitenliste daneben.
+Stand: zwei Mitschnitte von Ron vom 2026-11-02 (iPad, App „L-20 Control“, L-20 Firmware 1.23 mit BTA-1).
+Dateien in `/mnt/project-files/mitschnitte/`, Zeitenlisten daneben. Umgesetzt in `src/lib/l20Midi.ts`, Test mit
+dem echten Zustands-Dump in `src/lib/l20Midi.test.ts`.
 Dekodieren: `python3 tools/decode-pklg.py <datei.pklg>` (Meter ausgeblendet, `--all` zeigt sie).
 
-✅ = im Mitschnitt eindeutig gesehen · ❓ = Vermutung, braucht weiteren Test
+✅ = im Mitschnitt eindeutig gesehen · ❓ = Vermutung
 
 ## Transport
 
-- Das L-20 wirbt als **`L-20_<BT-Adresse>`** (z. B. `L-20_D3A03DA784FC`).
-- Es ist **Standard-BLE-MIDI** ✅: Service `03B80E5A-EDE8-4B33-A751-6CE34EC4C700`,
-  Characteristic `7772E5DB-3868-4112-A1A9-F2669D106BF3` (Write without response + Notify).
-  Kein eigenes Zoom-GATT, keine Verschlüsselung über BLE-MIDI hinaus.
-- Für den Pi heißt das: BlueZ mit MIDI-Unterstützung reicht, das L-20 erscheint dann als ALSA-MIDI-Gerät.
-- Das L-20 **bestätigt jeden Befehl**, indem es dieselbe CC-Nachricht zurückschickt ✅.
-  Änderungen am Gerät selbst (Fader, Mute-Taste) kommen ebenfalls als CC zurück ✅.
+- Das L-20 wirbt als **`L-20_<BT-Adresse>`** und spricht **Standard-BLE-MIDI** ✅: Service
+  `03B80E5A-EDE8-4B33-A751-6CE34EC4C700`, Characteristic `7772E5DB-3868-4112-A1A9-F2669D106BF3`.
+- Das L-20 bestätigt jeden Befehl mit derselben CC-Nachricht ✅. Änderungen am Gerät (Fader, Mute, Select)
+  kommen ebenfalls als CC ✅. Gain und Kompressor sind analog und kommen nicht ✅.
 
-## Verbindungsaufbau (App → L-20)
+## Verbindungsaufbau
 
-| Nachricht                 | Bedeutung                                                                                                                                                                            |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `F0 7E 7F 0D 70 …`        | MIDI-CI Discovery (Standard, kann man vermutlich weglassen ❓)                                                                                                                       |
-| `F0 7E 00 06 01 F7`       | Identity Request → Antwort `F0 7E 00 06 02 52 72 00 03 00 "1.23" F7` (Zoom, Firmware 1.23) ✅                                                                                        |
-| `F0 52 00 00 2B F7`       | Kompletter Zustand anfordern → Antwort `F0 52 00 00 2A …` (656 Byte): 18 Kanalnamen à 9 Byte (`CH1` … `CH17_18`, `CH19_20`) + Parameterblock (484 Byte, noch nicht entschlüsselt ❓) |
-| `F0 52 00 00 07 00 F7`    | Szenenliste → `F0 52 00 00 06 00 …` (99 Einträge `SCENE_01` …) ✅                                                                                                                    |
-| `F0 52 00 00 07 01/02 F7` | weitere Listen (je 30 Einträge, vermutlich Recorder-Projekte/Dateien ❓)                                                                                                             |
-| `B5 57 00`                | unbekannt ❓                                                                                                                                                                         |
-| `F0 52 00 00 50 F7`       | Meter-Stream starten ❓ (danach ca. 15 Meter-Nachrichten pro Sekunde)                                                                                                                |
-| `F0 52 00 00 51 F7`       | beim Trennen gesendet: Meter-Stream stoppen ❓                                                                                                                                       |
+| Nachricht                    | Bedeutung                                                                |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `F0 7E 00 06 01 F7`          | Identity Request → `F0 7E 00 06 02 52 72 00 03 00 "1.23" F7` ✅          |
+| `F0 52 00 00 2B F7`          | Zustand anfordern → `F0 52 00 00 2A …` (656 Byte, siehe unten) ✅        |
+| `F0 52 00 00 07 00/01/02 F7` | Szenenliste (99 × `SCENE_xx`) und zwei weitere Listen ✅ (nicht genutzt) |
+| `F0 52 00 00 50 F7`          | Meter-Stream starten ✅; `… 51 F7` beim Trennen                          |
+
+## Zustand (`F0 52 00 00 2A`)
+
+Nach 5 Byte Kopf und 4 Byte (`08 05 00 00`) folgen 18 Kanalnamen à 9 Byte (Kanal 1–16, 17/18, 19/20), dann ein
+Block, der überwiegend aus Feldern mit **18 Byte (ein Byte pro Kanalzug)** besteht. Offsets ab Blockbeginn ✅
+(Werte wie bei den CCs unten):
+
+| Offset | Inhalt          |     | Offset     | Inhalt                   |
+| ------ | --------------- | --- | ---------- | ------------------------ |
+| 18     | Select          |     | 198        | Low Cut                  |
+| 36     | Mute            |     | 216        | Send FX 1                |
+| 90     | Pan             |     | 234        | Send FX 2                |
+| 126    | EQ High         |     | 252        | Fader                    |
+| 144    | EQ Mid-Frequenz |     | 270 + 18·k | Send Mix A…F (k = 0…5)   |
+| 162    | EQ Mid-Gain     |     | 378 / 379  | Effekttyp FX 1 / FX 2    |
+| 180    | EQ Low          |     | 416 … 430  | Master-GEQ, 15 Bänder ❓ |
+
+Offen ❓: Solo, Phase, Master-/Mix-/FX-Return-Fader (vermutlich 408–414), Effekt-Parameter (380–387).
 
 ## Steuerbefehle (Control Change)
 
-Der **MIDI-Kanal ist der Mixer-Kanal**: `B0` = Kanal 1, `B1` = Kanal 2 ✅. Kanal 3–16 = `B2`–`BF` ist vermutet ❓. Für 17–20 reichen 16 MIDI-Kanäle nicht, die Zuordnung ist offen ❓ (die App sendet dort noch nichts).
-Werte sind 7-Bit (0–127).
+Kanal 1–16 liegt auf MIDI-Kanal 0–15 (`B0`…`BF`) ✅. **Kanal 17/18 und 19/20 nutzen die nächste CC-Nummer
+(n+1) auf MIDI-Kanal 0 bzw. 2** ✅ (z. B. Fader 17/18 = `B0 3D`, Mute 19/20 = `B2 31`).
 
-| Funktion           | Nachricht              | Werte                                            | Status                                                                    |
-| ------------------ | ---------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
-| Kanal-Fader        | `Bn 3C vv`             | 0 (−∞) … 120 (Max), **0 dB = 82**                | ✅ (dB-Tabelle ❓)                                                        |
-| Mute               | `Bn 30 vv`             | 1 = an, 0 = aus                                  | ✅                                                                        |
-| Solo               | `Bn 32 vv`             | 1 = an, 0 = aus                                  | ✅                                                                        |
-| Pan                | `Bn 0C vv`             | 0 = L, 50 = Mitte, 100 = R                       | ✅                                                                        |
-| EQ High            | `Bn 14 vv`             | 0 … 60, ganz runter = 0, vermutlich 30 = 0 dB ❓ | ✅                                                                        |
-| Low Cut (Poti)     | `Bn 2E vv`             | 0 = aus … 56 = 600 Hz ❓                         | ✅                                                                        |
-| Send FX 1          | `Bn 34 vv`             | 0 … 60                                           | ✅                                                                        |
-| Send FX 2          | `Bn 36 vv`             | 0 … 60                                           | ✅                                                                        |
-| Send Monitor-Mix A | `Bn 53 vv`             | 0 … 118 (Fader-Skala wie oben ❓)                | ✅ für A, B–F ❓                                                          |
-| Rec/Play-Select    | `Bn 08 vv`             | 0 = aus, 2 = Rec (rot), 1 = Play (orange)        | ✅ (1 lehnt das Gerät ab, wenn keine Aufnahme da ist: es antwortet mit 0) |
-| Master-Fader       | `BA 54 vv`             | 0 … 120, 0 dB = 82                               | ✅                                                                        |
-| FX-1-Return-Fader  | `BC 50 vv`             | 0 … 120                                          | ✅                                                                        |
-| FX-1-Effekttyp     | `B0 4E vv`             | Typ-Nummer (gesehen: 1, 3)                       | ✅; das Gerät meldet danach Parameter auf `B4/B5/BC/BD 4E` ❓             |
-| Recorder-Taste     | `B9 57 03`, `BA 57 03` | Antwort `B8 57 00`, `B9 59 00`                   | ❓ Tasten im Hauptbildschirm, ohne SD-Karte mehrfach gedrückt             |
-| Ansicht gewechselt | RX `B2 31 01/00`       |                                                  | ❓ Ron hat da die Ansicht in der App gewechselt                           |
-| Master am Gerät    | RX `BA 54 vv`          | wie Master-Fader                                 | ✅                                                                        |
+| Funktion                       | CC                                         | Werte                                                                           |
+| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| Select (Rec/Play)              | `08`                                       | 0 aus, 2 Rec (rot), 1 Play (orange; ohne Aufnahme antwortet das Gerät mit 0) ✅ |
+| Pan                            | `0C`                                       | 0 L, 50 Mitte, 100 R ✅                                                         |
+| EQ High / Mid-Gain / Low       | `14` / `1A` / `2C`                         | 0…60, 30 = 0 dB, 0,5-dB-Schritte ✅                                             |
+| EQ Mid-Frequenz                | `18`                                       | 0…95, ❓ log 100 Hz…8 kHz                                                       |
+| Low Cut                        | `2E`                                       | 0 aus, 1…56 = 40…600 Hz ✅ (Kurve ❓)                                           |
+| Mute / Solo                    | `30` / `32`                                | 1 an, 0 aus ✅                                                                  |
+| Send FX 1 / FX 2               | `34` / `36`                                | 0…60, **45 = 0 dB** ✅ (oberes Ende ❓)                                         |
+| Fader                          | `3C`                                       | 0…120, **82 = 0 dB** ✅ (Zwischenwerte linear ❓)                               |
+| Send Mix A / B / C / D / E / F | `3E` ❓ / `40` / `42` / `44` / `46` / `48` | wie Fader ✅                                                                    |
 
-Noch nicht gesehen: EQ Low, EQ Mid (Gain/Freq), Phase, Mid-Frequenz, Szenen laden/speichern,
-FX 2 Return, Monitor-Mix B–F, Master-GEQ, Stereo-Link, Kanalnamen schreiben.
+Busse:
 
-## Nicht über Bluetooth
+| Funktion              | Nachricht                           |                                 |
+| --------------------- | ----------------------------------- | ------------------------------- |
+| Master-Fader          | `BA 54 vv`                          | ✅                              |
+| FX-1- / FX-2-Return   | `BC 50 vv` / `BD 50 vv`             | ✅                              |
+| Mix-A-Ausgang         | `B0 53 vv`                          | ✅; Mix B–F = `B1`…`B5 53` ❓   |
+| Effekttyp FX 1 / FX 2 | `B0 4E vv` / `B1 4E vv`             | Index in der Effektliste ✅     |
+| Master-GEQ            | `B6 55 vv` für ein Band (30 = 0 dB) | Zuordnung der anderen Bänder ❓ |
+| Ansicht in der App    | `B5 57 vv` (0 Main, 2…6 = Mix B…F)  | nur Anzeige, nicht nötig        |
 
-- **Gain** und **Kompressor** von Kanal 1 am Gerät gedreht: **keine Nachricht** ✅. Beides ist analog
-  und für die App unsichtbar. Die App hat auch keinen Gain-Regler (laut Ron).
+Recorder ✅:
 
-## Meter (L-20 → App)
+|                     |                                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Tasten (App → L-20) | `B9 57 03` Record, `BA 57 03` Play (auch Pause), `BB 57 03` Stop, `BD 57 05/04` vor, `BC 57 05/04` zurück (drücken/loslassen) |
+| Status (L-20 → App) | `B8 57 vv`: 0 Stop, 1 Play, 3 Record bereit, 4 Pause, 5 Aufnahme                                                              |
+| Zählwerk            | `B8`…`BB 58 vv`, `BB` = Sekunden, `BA` = Minuten, `B9` = Stunden ❓; `BC`…`BF 58` = Restzeit ❓                               |
 
-`F0 52 00 00 31 04 <51 Byte> F7`, etwa 15 pro Sekunde. Im Mitschnitt lag kein Audiosignal an, fast alle
-Bytes waren 0. Die Zuordnung Byte → Kanal ist offen ❓ und braucht einen Mitschnitt mit Signal.
+## Meter (`F0 52 00 00 31 04 …`, ca. 15 pro Sekunde)
 
-## Nächster Mitschnitt (Vorschlag)
-
-1. Mit SD-Karte: Recorder (Record → Play, Stopp, Pause, Vor/Zurück), Select orange.
-2. Audiosignal nur auf Kanal 1, dann nur auf Kanal 2 (für die Meter-Zuordnung).
-3. Fader Kanal 1 auf −10, −20, −40 dB stellen (für die dB-Tabelle).
-4. EQ Low/Mid, Mid-Frequenz, Monitor-Mix B und F, FX 2 Return, Master-GEQ ein Band, Szene laden.
+Byte 6+n = Kanal n (1–20) ✅. Skala ❓ (die App rechnet Wert − 48 = dBFS, mit Testton kalibrieren).
+Master- und FX-Meter sind noch nicht zugeordnet ❓.

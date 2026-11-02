@@ -78,9 +78,15 @@ export const useMixerStore = create<MixerState>()(
   ),
 )
 
-// Events from the mixer (or, later, other devices via the Pi) are applied as-is: the sender already linked them.
+// Events from other devices (later via the Pi) are applied as-is: the sender already linked them.
+// Moves on the L-20 itself know nothing of our stereo links, so the partner is sent along here.
 transport.onEvent((event) => {
   if (event.type === 'meters') useMixerStore.setState({ meters: event.levels })
   else if (event.type === 'snapshot') useMixerStore.setState({ mixer: event.mixer })
-  else useMixerStore.setState((s) => ({ mixer: applyCommand(s.mixer, event) }))
+  else {
+    const partner = source === 'l20' ? partnerCommand(useMixerStore.getState().mixer, event) : null
+    for (const cmd of partner ? [event, partner] : [event])
+      useMixerStore.setState((s) => ({ mixer: applyCommand(s.mixer, cmd) }))
+    if (partner) transport.send(partner)
+  }
 })

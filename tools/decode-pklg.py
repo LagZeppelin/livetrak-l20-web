@@ -28,10 +28,14 @@ def att_packets(path, handle):
                 buf[ty] = b''
 
 def l20_handle(path):
-    """Connection handle of the device advertising as L-20_..., via the LE connection-complete event."""
-    for t, ty, d in records(path):
-        if ty == 1 and len(d) > 13 and d[0] == 0x3e and d[2] in (1, 0x0a) and d[3] == 0:
-            return struct.unpack('<H', d[4:6])[0]  # shortcut: first LE connection, fine while only the L-20 connects first
+    """Connection handle of the L-20: it advertises as L-20_<address bytes in hex>, matched to the LE connection's peer."""
+    recs = list(records(path)); addr = None
+    for t, ty, d in recs:
+        i = d.find(b'L-20_') if ty == 1 else -1
+        if i >= 0: addr = d[i + 5:i + 17].decode(errors='replace').upper(); break
+    for t, ty, d in recs:
+        if ty == 1 and len(d) > 13 and d[0] == 0x3e and d[2] in (1, 0x0a) and d[3] == 0 and d[8:14].hex().upper() == addr:
+            return struct.unpack('<H', d[4:6])[0]
 
 DATA_LEN = {0x80: 2, 0x90: 2, 0xA0: 2, 0xB0: 2, 0xE0: 2, 0xC0: 1, 0xD0: 1}
 

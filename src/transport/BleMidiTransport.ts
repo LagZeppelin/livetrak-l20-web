@@ -3,10 +3,12 @@ import {
   BLE_MIDI_CHARACTERISTIC,
   BLE_MIDI_SERVICE,
   BleMidiParser,
-  REQUEST_STATE,
+  HELLO,
   blePacket,
   decode,
-  decodeNames,
+  decodeClock,
+  decodeMeters,
+  decodeState,
   encode,
 } from '@/lib/l20Midi'
 import type { IMixerTransport, MixerEvent } from './types'
@@ -35,7 +37,7 @@ type Bluetooth = {
   }): Promise<Device>
 }
 
-/** The L-20 echoes every command; echoes of a control we moved this recently are dropped so a drag doesn't jitter. */
+/** The L-20 echoes every command; echoes of values we sent this recently are dropped so a drag doesn't jitter. */
 const ECHO_MS = 400
 
 /**
@@ -47,10 +49,12 @@ export class BleMidiTransport implements IMixerTransport {
   private char: Characteristic | null = null
   private listeners = new Set<(e: MixerEvent) => void>()
   private parser = new BleMidiParser()
+  private clock: number[] = []
   /** Latest unsent message per control, so a fast drag only sends where the fader is now. */
   private pending = new Map<string, number[]>()
   private writing = false
-  private sentAt = new Map<string, number>()
+  /** Per control: when we last sent it and the values sent since; a reply with another value (e.g. a refusal) still counts. */
+  private sent = new Map<string, { at: number; values: Set<number> }>()
 
   static supported(): boolean {
     return typeof navigator !== 'undefined' && 'bluetooth' in navigator
@@ -68,7 +72,7 @@ export class BleMidiTransport implements IMixerTransport {
     this.char = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC)
     this.char.addEventListener('characteristicvaluechanged', this.onValue)
     await this.char.startNotifications()
-    this.queue(REQUEST_STATE)
+    for (const msg of HELLO) this.queue(msg)
   }
 
   async disconnect(): Promise<void> {
@@ -88,9 +92,17 @@ export class BleMidiTransport implements IMixerTransport {
   }
 
   private queue(msg: number[]) {
-    const key = msg[0] === 0xf0 ? msg.join() : `${msg[0]}:${msg[1]}`
+    // button presses (SysEx, recorder CC 0x57) must all go out; level controls only need their latest value
+    const key = msg[0] === 0xf0 || msg[1] === 0x57 ? msg.join() : `${msg[0]}:${msg[1]}`
     this.pending.set(key, msg)
-    if (msg[0] !== 0xf0) this.sentAt.set(key, Date.now())
+    if (msg[0] !== 0xf0) {
+      const prev = this.sent.get(key)
+      const fresh = prev && Date.now() - prev.at < ECHO_MS
+      this.sent.set(key, {
+        at: Date.now(),
+        values: new Set(fresh ? [...prev.values, msg[2]!] : [msg[2]!]),
+      })
+    }
     void this.flush()
   }
 
@@ -119,9 +131,24 @@ export class BleMidiTransport implements IMixerTransport {
     for (const msg of this.parser.parse(
       new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
     )) {
-      const echo = Date.now() - (this.sentAt.get(`${msg[0]}:${msg[1]}`) ?? 0) < ECHO_MS
-      const cmds = msg[0] === 0xf0 ? decodeNames(msg) : echo ? [] : [decode(msg)]
-      for (const cmd of cmds) if (cmd) for (const l of this.listeners) l(cmd)
+      const s = this.sent.get(`${msg[0]}:${msg[1]}`)
+      const echo = !!s && Date.now() - s.at < ECHO_MS && s.values.has(msg[2]!)
+      const levels = decodeMeters(msg)
+      if (levels) {
+        this.emit({ type: 'meters', levels })
+        continue
+      }
+      const cmds =
+        msg[0] === 0xf0
+          ? decodeState(msg)
+          : echo
+            ? []
+            : [decode(msg) ?? decodeClock(msg, this.clock)]
+      for (const cmd of cmds) if (cmd) this.emit(cmd)
     }
+  }
+
+  private emit(e: MixerEvent) {
+    for (const l of this.listeners) l(e)
   }
 }
