@@ -1,10 +1,24 @@
-import { EFFECTS, type Channel, type FxMixId, type MonitorMixId } from '@/lib/mixer'
+import {
+  EFFECTS,
+  NEXT_REC_SELECT,
+  type Channel,
+  type FxMixId,
+  type MonitorMixId,
+} from '@/lib/mixer'
 import { dbToPos, formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Slider, Icon, Label, ValueBox } from '../components/controls'
 import { MiniEq, MiniGeq } from '../components/EqGraph'
-import { channelNo, isFixedStereo, linkCommand, mixLevel, sendLevel, type View } from '../mixView'
+import {
+  channelNo,
+  REC_SELECT_TITLE,
+  isFixedStereo,
+  linkCommand,
+  mixLevel,
+  sendLevel,
+  type View,
+} from '../mixView'
 
 export const STRIP_W = 111 // strip width + gap, also used to scroll from the overview
 
@@ -128,10 +142,17 @@ function Strip({
         </Btn>
       </div>
       <Btn
-        kind={c.recSelect ? 'rec' : 'plain'}
+        kind={c.recSelect === 'off' ? 'plain' : c.recSelect}
         className="mt-2 h-8"
-        aria-pressed={c.recSelect}
-        onClick={() => dispatch({ type: 'channel', ch: c.id, patch: { recSelect: !c.recSelect } })}
+        aria-pressed={c.recSelect !== 'off'}
+        title={REC_SELECT_TITLE[c.recSelect]}
+        onClick={() =>
+          dispatch({
+            type: 'channel',
+            ch: c.id,
+            patch: { recSelect: NEXT_REC_SELECT[c.recSelect] },
+          })
+        }
       >
         Select
       </Btn>
@@ -141,6 +162,7 @@ function Strip({
         onChange={setLevel}
         levels={fixed ? [meter, meterR] : [meter]}
         label={`Fader ${c.name}`}
+        reset={0}
       />
       {!fixed && (
         <>
@@ -159,6 +181,7 @@ function Strip({
                 }
                 origin={0.5}
                 label={`Pan ${c.name}`}
+                reset={0.5}
                 valueText={formatPan(c.pan)}
               />
             )}

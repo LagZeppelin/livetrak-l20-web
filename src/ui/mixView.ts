@@ -82,3 +82,10 @@ export type View = 'main' | MonitorMixId
 
 /** What the right-rail dropdown switches: a mix view or the master page. */
 export type Screen = View | 'master'
+
+/** Tooltip for the channel Select (REC/PLAY) button. */
+export const REC_SELECT_TITLE = {
+  off: 'Wird weder aufgenommen noch abgespielt',
+  rec: 'Nimmt den Eingang auf die SD-Karte auf',
+  play: 'Spielt die Aufnahme ab, der Eingang ist stumm',
+} as const

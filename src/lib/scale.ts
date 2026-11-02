@@ -1,15 +1,14 @@
 import { FADER_MIN, GEQ_BANDS, type Eq } from './mixer'
 
-/** Fader taper from Ron's channel strip design: dB -> position 0 (top, +10) … 1 (bottom, -60). */
+/** Fader taper, labels as on the L-20 (Ron, 2026-11-02): dB -> position 0 (top, +10) … 1 (bottom, -∞ = FADER_MIN). */
 const TAPER: [number, number][] = [
   [10, 0],
   [5, 0.11],
   [0, 0.21],
-  [-5, 0.31],
-  [-10, 0.41],
-  [-20, 0.565],
-  [-40, 0.78],
-  [-60, 1],
+  [-5, 0.41],
+  [-10, 0.565],
+  [-20, 0.78],
+  [FADER_MIN, 1],
 ]
 export const SCALE_MARKS = TAPER.map(([db]) => db)
 

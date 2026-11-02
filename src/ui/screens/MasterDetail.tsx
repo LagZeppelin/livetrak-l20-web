@@ -45,6 +45,7 @@ export function MasterDetail({ onBack }: { onBack: () => void }) {
                   pos={toPos(geq[band])}
                   onPos={(p) => dispatch({ type: 'geq', band, gain: toDb(p) })}
                   label={`${hz(f)} Hz`}
+                  reset={0.5}
                   valueText={`${geq[band]} dB`}
                 />
               </div>
