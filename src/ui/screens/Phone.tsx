@@ -11,7 +11,7 @@ import { channelGroups, mixLevel, sendLevel, type ChannelGroup } from '../mixVie
 const toPos = (db: number) => 1 - dbToPos(db)
 const ZERO = toPos(0)
 
-/** A phone opened via ?phone: welcome, name, pick a free mix, then the mix itself. */
+/** A phone opened via ?phone: welcome, pick a free mix, then the mix itself. */
 export function PhoneEntry() {
   const me = useDevicesStore((s) => s.devices.find((d) => d.id === myDeviceId))
   const [welcome, setWelcome] = useState(() => !welcomeHidden())
@@ -21,7 +21,7 @@ export function PhoneEntry() {
         <Phone mix={me.mix} me={me} />
       ) : (
         <div className="mx-auto flex h-dvh max-w-md flex-col justify-center px-6">
-          {me ? <PickMix me={me} /> : <Join />}
+          <PickMix me={me} />
         </div>
       )}
       {welcome && <Welcome onClose={() => setWelcome(false)} />}
@@ -110,55 +110,41 @@ function Welcome({ onClose }: { onClose: () => void }) {
   )
 }
 
-function Join() {
+/** Free mixes can be tapped; taken ones are greyed out. The name is optional. */
+function PickMix({ me }: { me?: Device }) {
+  const devices = useDevicesStore((s) => s.devices)
   const dispatch = useDevicesStore((s) => s.dispatch)
-  const [name, setName] = useState('')
+  const [name, setName] = useState(me?.name ?? '')
+  const pick = (mix: MonitorMixId) => {
+    dispatch({ type: 'join', id: myDeviceId, name })
+    dispatch({ type: 'claim', id: myDeviceId, mix })
+  }
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        dispatch({ type: 'join', id: myDeviceId, name })
-      }}
-    >
-      <h1 className="text-4xl font-bold">Wie heißt du?</h1>
-      <p className="text-fg2 mt-2 text-lg">Dein Name erscheint am iPad bei deinem Mix.</p>
+    <div>
+      <h1 className="text-4xl font-bold">Welcher Mix ist deiner?</h1>
       <input
-        autoFocus
         maxLength={20}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="z. B. Lisa (Bass)"
-        aria-label="Dein Name"
+        placeholder="Name (optional)"
+        aria-label="Name (optional)"
         className="border-line bg-raised focus:border-fg2 mt-6 h-14 w-full rounded border px-4 text-xl outline-none"
       />
-      <Btn kind="on" type="submit" disabled={!name.trim()} className="mt-4 h-14 w-full text-lg">
-        Weiter
-      </Btn>
-    </form>
-  )
-}
-
-/** Free mixes can be tapped; taken ones are greyed out with their owner's name. */
-function PickMix({ me }: { me: Device }) {
-  const devices = useDevicesStore((s) => s.devices)
-  const dispatch = useDevicesStore((s) => s.dispatch)
-  return (
-    <div>
-      <h1 className="text-4xl font-bold">Hallo {me.name}</h1>
-      <p className="text-fg2 mt-2 text-lg">Welcher Mix ist deiner?</p>
-      <div className="mt-6 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3">
         {MONITOR_MIXES.map((m) => {
-          const owner = devices.find((d) => d.mix === m)
+          const owner = devices.find((d) => d.mix === m && d.id !== myDeviceId)
           return (
             <button
               key={m}
               type="button"
               disabled={!!owner}
-              onClick={() => dispatch({ type: 'claim', id: me.id, mix: m })}
+              onClick={() => pick(m)}
               className="card flex h-24 flex-col items-center justify-center disabled:opacity-40"
             >
               <span className="text-2xl font-bold">Mix {m}</span>
-              <span className="text-fg2 truncate text-sm">{owner ? owner.name : 'frei'}</span>
+              <span className="text-fg2 truncate text-sm">
+                {owner ? owner.name || 'vergeben' : 'frei'}
+              </span>
             </button>
           )
         })}
@@ -186,7 +172,7 @@ export function Phone({ mix, me }: { mix: MonitorMixId; me?: Device }) {
         <header className="flex items-center justify-between py-4">
           <div>
             <h1 className="text-4xl font-bold">Mix {mix}</h1>
-            {me && <p className="text-fg2 text-lg">{me.name}</p>}
+            {me?.name && <p className="text-fg2 text-lg">{me.name}</p>}
           </div>
           <StatusPill connected={status === 'connected'}>
             {status === 'connected' ? 'VERBUNDEN' : 'GETRENNT'}

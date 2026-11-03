@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { deviceLabel } from '@/lib/devices'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
 import { cn } from '@/lib/utils'
 import { useDevicesStore } from '@/state/devicesStore'
@@ -8,7 +9,10 @@ import { Btn, Icon, Label } from '../components/controls'
 export function AdminDialog({ onClose }: { onClose: () => void }) {
   const devices = useDevicesStore((s) => s.devices)
   const dispatch = useDevicesStore((s) => s.dispatch)
-  const owner = (m: MonitorMixId) => devices.find((d) => d.mix === m)?.name
+  const owner = (m: MonitorMixId) => {
+    const d = devices.find((d) => d.mix === m)
+    return d && deviceLabel(d)
+  }
 
   return (
     <div
@@ -42,19 +46,19 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
         <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
           {devices.length === 0 && (
             <p className="text-fg2 py-8 text-center">
-              Noch kein Handy angemeldet. Auf dem Handy die App mit <b>?phone</b> öffnen und Namen
-              eingeben.
+              Noch kein Handy angemeldet. Sobald jemand auf dem Handy einen Mix wählt, erscheint es
+              hier.
             </p>
           )}
           {devices.map((d) => (
             <div key={d.id} className="card flex items-center gap-3 px-4 py-3">
               <Icon name="phone" className="text-fg2 size-5" />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold">{d.name}</div>
-                {!d.mix && <div className="text-warn text-xs">wählt gerade einen Mix</div>}
+                <div className="truncate text-base font-semibold">{deviceLabel(d)}</div>
+                {!d.mix && <div className="text-warn text-xs">ohne Mix</div>}
               </div>
               <select
-                aria-label={`Mix für ${d.name}`}
+                aria-label={`Mix für ${deviceLabel(d)}`}
                 value={d.mix ?? ''}
                 onChange={(e) =>
                   dispatch({
@@ -87,7 +91,7 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
               </label>
               <Btn
                 className="h-10 px-3"
-                aria-label={`${d.name} entfernen`}
+                aria-label={`${deviceLabel(d)} entfernen`}
                 onClick={() => dispatch({ type: 'remove', id: d.id })}
               >
                 Entfernen
@@ -120,7 +124,7 @@ export function ConnectSnackbar({ paused }: { paused: boolean }) {
       const d = s.devices.find(
         (d) => d.mix && prev.devices.find((p) => p.id === d.id)?.mix !== d.mix,
       )
-      if (d) setText(`${d.name} hat sich mit Mix ${d.mix} verbunden`)
+      if (d) setText(`${d.name || 'Ein Handy'} hat sich mit Mix ${d.mix} verbunden`)
     })
   }, [paused])
   useEffect(() => {

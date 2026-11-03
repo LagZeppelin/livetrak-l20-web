@@ -1,16 +1,20 @@
 import { expect, test } from 'vitest'
-import { applyDeviceCommand, type Device, type DeviceCommand } from './devices'
+import { applyDeviceCommand, deviceLabel, type Device, type DeviceCommand } from './devices'
 
 const run = (...cmds: DeviceCommand[]) => cmds.reduce<Device[]>(applyDeviceCommand, [])
 
-test('a phone joins waiting, renaming keeps its mix, blank names are ignored', () => {
+test('a phone joins without a mix, renaming keeps its mix, the name is optional', () => {
   const d = run(
     { type: 'join', id: 'a', name: ' Lisa ' },
     { type: 'assign', id: 'a', mix: 'B' },
     { type: 'join', id: 'a', name: 'Lisa Bass' },
     { type: 'join', id: 'b', name: '  ' },
   )
-  expect(d).toEqual([{ id: 'a', name: 'Lisa Bass', mix: 'B', foh: false }])
+  expect(d).toEqual([
+    { id: 'a', name: 'Lisa Bass', mix: 'B', foh: false },
+    { id: 'b', name: '', mix: null, foh: false },
+  ])
+  expect(d.map(deviceLabel)).toEqual(['Lisa Bass', 'Handy'])
 })
 
 test('a mix belongs to one phone: assigning it again frees the old one', () => {

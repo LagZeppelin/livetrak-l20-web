@@ -3,6 +3,7 @@ import type { MonitorMixId } from './mixer'
 /** A musician's phone as the admin (iPad) sees it. */
 export interface Device {
   id: string
+  /** Optional, '' when the musician left it empty. */
   name: string
   /** The monitor mix this phone controls; null = still picking one. One mix belongs to one phone. */
   mix: MonitorMixId | null
@@ -24,7 +25,6 @@ export function applyDeviceCommand(devices: Device[], cmd: DeviceCommand): Devic
   switch (cmd.type) {
     case 'join': {
       const name = cmd.name.trim()
-      if (!name) return devices
       const known = devices.some((d) => d.id === cmd.id)
       return known
         ? devices.map((d) => (d.id === cmd.id ? { ...d, name } : d))
@@ -47,3 +47,6 @@ export function applyDeviceCommand(devices: Device[], cmd: DeviceCommand): Devic
       return devices.filter((d) => d.id !== cmd.id)
   }
 }
+
+/** What the iPad shows for a phone: its name, or which mix it holds. */
+export const deviceLabel = (d: Device) => d.name || (d.mix ? `Handy Mix ${d.mix}` : 'Handy')
