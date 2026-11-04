@@ -1,6 +1,14 @@
 import { expect, test } from 'vitest'
 import { applyCommand, createMixer } from '@/lib/mixer'
-import { channelGroups, linkCommand, mixLevel, sendLevel } from './mixView'
+import {
+  channelGroups,
+  linkCommand,
+  mixLevel,
+  sendLevel,
+  SLOT_COUNT,
+  slotChannel,
+  slotOf,
+} from './mixView'
 
 test('stereo pairs become one row named without L/R', () => {
   let m = createMixer()
@@ -36,4 +44,10 @@ test('send meter ignores the main fader and follows mute and the mix fader', () 
   m = applyCommand(m, { type: 'channel', ch: 1, patch: { mute: true } })
   expect(sendLevel(m, meters, 1, 'A')).toBe(-99)
   expect(mixLevel(m, [], 'A')).toBeUndefined()
+})
+
+test('strip slots count 17/18 and 19/20 once', () => {
+  expect([16, 17, 18, 19, 20].map(slotOf)).toEqual([16, 17, 17, 18, 18])
+  expect(SLOT_COUNT).toBe(18)
+  expect([1, 16, 17, 18].map(slotChannel)).toEqual([1, 16, 17, 19])
 })

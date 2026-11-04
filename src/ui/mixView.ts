@@ -1,5 +1,6 @@
 import {
   canLink,
+  CHANNEL_COUNT,
   FADER_MIN,
   FIXED_STEREO,
   type Channel,
@@ -89,3 +90,13 @@ export const REC_SELECT_TITLE = {
   rec: 'Nimmt den Eingang auf die SD-Karte auf',
   play: 'Spielt die Aufnahme ab, der Eingang ist stumm',
 } as const
+
+/**
+ * Strip slots on the iPad: one per channel, except the fixed stereo inputs, which share one strip each.
+ * 1–16 stay, 17/18 -> 17, 19/20 -> 18. The overview and the scroll position count in slots.
+ */
+export const slotOf = (ch: number) => ch - FIXED_STEREO.filter((left) => ch > left).length
+export const SLOT_COUNT = slotOf(CHANNEL_COUNT)
+/** First (left) channel of a slot. */
+export const slotChannel = (slot: number) =>
+  slot + FIXED_STEREO.filter((left) => slotOf(left) < slot).length

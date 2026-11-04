@@ -30,6 +30,7 @@ export function Console({
 }: {
   mix: View
   onOpen: (ch: number) => void
+  /** first and last strip slot on screen (see slotOf) */
   onVisible: (range: [number, number]) => void
 }) {
   const channels = useMixerStore((s) => s.mixer.channels)
@@ -41,7 +42,8 @@ export function Console({
         onScroll={(e) => {
           const el = e.currentTarget
           const first = Math.round(el.scrollLeft / STRIP_W) + 1
-          onVisible([first, first + Math.floor(el.clientWidth / STRIP_W) - 1])
+          // a slot counts as on screen when more than half of it shows
+          onVisible([first, Math.round((el.scrollLeft + el.clientWidth) / STRIP_W)])
         }}
       >
         {channels.map((c) =>

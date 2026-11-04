@@ -20,7 +20,14 @@ import {
   StatusPill,
   ValueBox,
 } from '../components/controls'
-import { mixLevel, type Screen, type View } from '../mixView'
+import {
+  isFixedStereo,
+  mixLevel,
+  SLOT_COUNT,
+  slotChannel,
+  type Screen,
+  type View,
+} from '../mixView'
 import { AdminDialog, ConnectSnackbar } from './Admin'
 
 export function Shell({
@@ -313,13 +320,14 @@ export function Overview({
   onOpen,
   onScroll,
 }: {
+  /** first and last slot on screen; slots count a fixed stereo pair once (see slotOf) */
   highlight: [number, number]
-  onOpen: (ch: number) => void
-  onScroll: (dxChannels: number) => void
+  onOpen: (slot: number) => void
+  onScroll: (dxSlots: number) => void
 }) {
   const meters = useMixerStore((s) => s.meters)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
-  const items = Array.from({ length: 20 }, (_, i) => i + 1)
+  const items = Array.from({ length: SLOT_COUNT }, (_, i) => i + 1)
   const STEP = 33
 
   return (
@@ -355,20 +363,28 @@ export function Overview({
             width: (highlight[1] - highlight[0]) * STEP + 40,
           }}
         />
-        {items.map((ch) => {
-          const on = ch >= highlight[0] && ch <= highlight[1]
-          const level = meters[ch - 1]
+        {items.map((slot) => {
+          const on = slot >= highlight[0] && slot <= highlight[1]
+          const ch = slotChannel(slot)
+          const stereo = isFixedStereo(ch)
           return (
             <div
-              key={ch}
-              data-ch={ch}
+              key={slot}
+              data-ch={slot}
               className="relative flex w-[33px] flex-col items-center py-1.5"
             >
-              <span className={cn('font-mono text-[11px]', on ? 'font-medium' : 'text-fg2')}>
-                {ch}
+              <span
+                className={cn(
+                  'font-mono',
+                  stereo ? 'text-[9px] leading-[16.5px]' : 'text-[11px]',
+                  on ? 'font-medium' : 'text-fg2',
+                )}
+              >
+                {stereo ? `${ch}·${ch + 1}` : ch}
               </span>
-              <div className="mt-1 flex h-6">
-                <Meter level={level} />
+              <div className="mt-1 flex h-6 gap-0.5">
+                <Meter level={meters[ch - 1]} />
+                {stereo && <Meter level={meters[ch]} />}
               </div>
             </div>
           )
