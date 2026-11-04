@@ -36,3 +36,15 @@ test('phone channel selection is sorted and toggles', () => {
   store().toggleVisible(7)
   expect(store().visibleChannels).toEqual([1])
 })
+
+test('a saved profile brings the settings back; deleting the default clears it', () => {
+  store().saveProfile('Probe')
+  const { id } = store().profiles.at(-1)!
+  store().setDefaultProfile(id)
+  store().dispatch({ type: 'channel', ch: 1, patch: { fader: -30 } })
+  store().dispatch({ type: 'link', ch: 3, linked: false })
+  store().loadProfile(id)
+  expect(store().mixer.channels).toEqual(store().profiles.at(-1)!.mixer.channels)
+  store().deleteProfile(id)
+  expect(store().defaultProfileId).toBeNull()
+})
