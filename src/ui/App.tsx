@@ -5,7 +5,7 @@ import { ChannelDetail } from './screens/ChannelDetail'
 import { MasterDetail } from './screens/MasterDetail'
 import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
 import { Phone, PhoneEntry } from './screens/Phone'
-import { isFixedStereo, type View } from './mixView'
+import { slotChannel, slotOf, type View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
 
 // ?phone = a musician's phone (joins, waits for the admin); ?phone=C skips that for testing
@@ -51,8 +51,8 @@ function Ipad() {
       }
       overview={
         <Overview
-          highlight={typeof detail === 'number' ? [detail, detail] : visible}
-          onOpen={(ch) => setDetail(isFixedStereo(ch - 1) ? ch - 1 : ch)}
+          highlight={typeof detail === 'number' ? [slotOf(detail), slotOf(detail)] : visible}
+          onOpen={(slot) => setDetail(slotChannel(slot))}
           onScroll={(dx) => document.getElementById('strips')?.scrollBy({ left: dx * STRIP_W })}
         />
       }
