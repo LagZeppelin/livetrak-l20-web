@@ -33,45 +33,69 @@ const cc = (midiCh: number, n: number, v: number): Msg => [0xb0 | midiCh, n, v]
 const clamp = (v: number, min: number, max: number) => Math.round(Math.min(max, Math.max(min, v)))
 
 /**
- * A dB scale on the wire: 0 = off (FADER_MIN), `zero` = 0 dB, `top` = FADER_MAX.
- * shortcut: straight lines between those three captured points; replace with a measured table if the readouts drift
+ * A control's wire value through points read off the official app (capture 3), straight lines in between.
+ * `log` interpolates in log space (frequency knobs). Both columns must rise.
  */
-const dbScale = (top: number, zero: number) => ({
-  to: (db: number) =>
-    db <= FADER_MIN
-      ? 0
-      : clamp(
-          db <= 0 ? zero + (db / -FADER_MIN) * zero : zero + (db / FADER_MAX) * (top - zero),
-          0,
-          top,
-        ),
-  from: (v: number) =>
-    v <= 0
-      ? FADER_MIN
-      : v <= zero
-        ? (FADER_MIN * (zero - v)) / zero + 0
-        : ((v - zero) / (top - zero)) * FADER_MAX,
-})
-/** Channel faders, mix A–F sends and bus faders: 0…120, 0 dB = 82. */
-const FADER = dbScale(120, 82)
-/** FX sends: 0…60, 0 dB = 45 (seen in the state dump; the top end is assumed to be +10 dB). */
-const FXSEND = dbScale(60, 45)
+const curve = (pts: [number, number][], log = false) => {
+  const f = log ? Math.log : (x: number) => x
+  const seg = (x: number, col: 0 | 1) => {
+    let k = 1
+    while (k < pts.length - 1 && x > pts[k]![col]) k++
+    return [pts[k - 1]!, pts[k]!] as const
+  }
+  const top = pts[pts.length - 1]![0]
+  return {
+    to: (v: number) => {
+      const [[r0, v0], [r1, v1]] = seg(v, 1)
+      return clamp(r0 + ((f(v) - f(v0)) * (r1 - r0)) / (f(v1) - f(v0)), pts[0]![0], top)
+    },
+    from: (raw: number) => {
+      const [[r0, v0], [r1, v1]] = seg(raw, 0)
+      const y = f(v0) + ((raw - r0) * (f(v1) - f(v0))) / (r1 - r0)
+      return log ? Math.round(Math.exp(y)) : y
+    },
+  }
+}
+/** Channel faders, mix A–F sends and bus faders: 0…120 (0 = off; −40/−20/−10/0/+10 dB at 8/27/45/82/120). */
+const FADER = curve([
+  [0, FADER_MIN],
+  [8, -40],
+  [27, -20],
+  [45, -10],
+  [82, 0],
+  [120, FADER_MAX],
+])
+/** FX sends: 0…60, 0 dB = 45, top = +10 dB. shortcut: straight lines below 0 dB, only the ends were read off */
+const FXSEND = curve([
+  [0, FADER_MIN],
+  [45, 0],
+  [60, FADER_MAX],
+])
 /** EQ and GEQ gains: 0…60, 30 = 0 dB, 0.5 dB steps (both ends captured as ±15 dB). */
 const GAIN = { to: (db: number) => clamp(db * 2 + 30, 0, 60), from: (v: number) => (v - 30) / 2 }
-/** A log frequency knob 1…top (0 is reserved) or 0…top. shortcut: log curve assumed, verify against the app's readout */
-const logKnob = (lo: number, hi: number, first: number, top: number) => ({
-  to: (hz: number) =>
-    clamp(first + (top - first) * (Math.log(hz / lo) / Math.log(hi / lo)), first, top),
-  from: (v: number) => Math.round(lo * (hi / lo) ** ((v - first) / (top - first))),
-})
-/** Low cut pot: 0 = off, 1…56 = 40…600 Hz. */
-const LOWCUT = logKnob(LOW_CUT_MIN_HZ, LOW_CUT_MAX_HZ, 1, 56)
-/** Mid frequency: 0…95, assumed 100 Hz…8 kHz (48 ≈ 1 kHz matches the default). */
-const MIDFREQ = logKnob(100, 8000, 0, 95)
+/** Low cut pot: 0 = off, 1…56 = 40…600 Hz, 24 = 101.4 Hz. */
+const LOWCUT = curve(
+  [
+    [1, LOW_CUT_MIN_HZ],
+    [24, 101.4],
+    [56, LOW_CUT_MAX_HZ],
+  ],
+  true,
+)
+/** Mid frequency: 0…96 = 100 Hz…8 kHz, 53 = 1017 Hz. */
+const MIDFREQ = curve(
+  [
+    [0, 100],
+    [53, 1017],
+    [96, 8000],
+  ],
+  true,
+)
 
 /** Per-channel controls: CC number for channels 1–16; channels 17–20 use the next CC (n+1) on MIDI channel 0–3. */
 const CH = {
   select: 0x08,
+  phase: 0x0a,
   pan: 0x0c,
   high: 0x14,
   midFreq: 0x18,
@@ -83,7 +107,6 @@ const CH = {
   fx1: 0x34,
   fx2: 0x36,
   fader: 0x3c,
-  // Mix A–F sends; A at 0x3E is inferred from the gap between the fader and Mix B, the others were captured
   A: 0x3e,
   B: 0x40,
   C: 0x42,
@@ -99,7 +122,7 @@ function addr(ch: number): { m: number; bank: number } | null {
   return null
 }
 
-/** Bus outputs. Main, FX 1/2 returns and Mix A were captured; Mix B–F on MIDI channels 1–5 follow Mix A's pattern (unverified). */
+/** Bus outputs: main, FX 1/2 returns, Mix A–F on MIDI channels 0–5 (all captured). */
 const BUS: Partial<Record<MixId, [number, number]>> = {
   main: [0x0a, 0x54],
   fx1: [0x0c, 0x50],
@@ -140,6 +163,7 @@ export function encode(cmd: MixerCommand): Msg[] {
       if (p.fader !== undefined) put(CH.fader, FADER.to(p.fader))
       if (p.mute !== undefined) put(CH.mute, +p.mute)
       if (p.solo !== undefined) put(CH.solo, +p.solo)
+      if (p.phase !== undefined) put(CH.phase, +p.phase)
       if (p.pan !== undefined) put(CH.pan, clamp((p.pan + 100) / 2, 0, 100))
       if (p.recSelect !== undefined) put(CH.select, SELECT[p.recSelect])
     } else if (cmd.type === 'eq') {
@@ -163,6 +187,10 @@ export function encode(cmd: MixerCommand): Msg[] {
     const bus = BUS[cmd.mix]
     if (bus && cmd.patch.fader !== undefined)
       out.push(cc(bus[0], bus[1], FADER.to(cmd.patch.fader)))
+    if (cmd.mix === 'main' && cmd.patch.mute !== undefined)
+      out.push(cc(0x09, 0x54, +cmd.patch.mute))
+  } else if (cmd.type === 'geq') {
+    out.push(cc(cmd.band, 0x55, GAIN.to(cmd.gain)))
   } else if (cmd.type === 'transport') {
     const [m, values] = REC_BUTTON[cmd.button]
     for (const v of values) out.push(cc(m, 0x57, v))
@@ -176,6 +204,8 @@ export function decode(msg: Msg): MixerCommand | null {
   const m = msg[0]! & 0x0f
   const [, n, v] = msg as [number, number, number]
   if (n === 0x4e && m < 2) return { type: 'bus', mix: FX_MIXES[m]!, patch: { effect: v } }
+  if (n === 0x54 && m === 0x09) return { type: 'bus', mix: 'main', patch: { mute: v > 0 } }
+  if (n === 0x55 && m < 15) return { type: 'geq', band: m, gain: GAIN.from(v) }
   if (n === 0x57 && m === 0x08 && v in REC_STATE)
     return { type: 'recorder', patch: { state: REC_STATE[v] } }
   for (const [mix, [bm, bn]] of Object.entries(BUS))
@@ -201,6 +231,8 @@ export function decode(msg: Msg): MixerCommand | null {
       return channel({ mute: v > 0 })
     case CH.solo:
       return channel({ solo: v > 0 })
+    case CH.phase:
+      return channel({ phase: v > 0 })
     case CH.pan:
       return channel({ pan: v * 2 - 100 })
     case CH.select:
@@ -238,6 +270,8 @@ export function decodeClock(msg: Msg, digits: number[]): MixerCommand | null {
 const STATE = {
   select: 18,
   mute: 36,
+  solo: 54,
+  phase: 72,
   pan: 90,
   high: 126,
   midFreq: 144,
@@ -249,6 +283,10 @@ const STATE = {
   fader: 252,
   sends: 270, // Mix A–F, 18 bytes each
   fxType: 378, // FX 1, FX 2
+  // 380…387: effect knobs as MSB/LSB pairs (FX1 p1, FX2 p1, FX1 p2, FX2 p2), raw units per effect, not mapped yet
+  monitors: 392, // Mix A–F outputs
+  main: 408,
+  fxReturn: 409, // FX 1, FX 2
   geq: 416, // 15 bands
 }
 
@@ -267,6 +305,8 @@ export function decodeState(msg: Msg): MixerCommand[] {
         name,
         fader: FADER.from(v(STATE.fader)),
         mute: v(STATE.mute) > 0,
+        solo: v(STATE.solo) > 0,
+        phase: v(STATE.phase) > 0,
         recSelect: SELECT_OF[v(STATE.select)] ?? 'off',
       }
       if (s < 16) patch.pan = v(STATE.pan) * 2 - 100
@@ -292,7 +332,15 @@ export function decodeState(msg: Msg): MixerCommand[] {
     }
   }
   FX_MIXES.forEach((mix, i) =>
-    out.push({ type: 'bus', mix, patch: { effect: at(STATE.fxType + i) } }),
+    out.push({
+      type: 'bus',
+      mix,
+      patch: { effect: at(STATE.fxType + i), fader: FADER.from(at(STATE.fxReturn + i)) },
+    }),
+  )
+  out.push({ type: 'bus', mix: 'main', patch: { fader: FADER.from(at(STATE.main)) } })
+  MONITOR_MIXES.forEach((mix, i) =>
+    out.push({ type: 'bus', mix, patch: { fader: FADER.from(at(STATE.monitors + i)) } }),
   )
   for (let b = 0; b < 15; b++)
     out.push({ type: 'geq', band: b, gain: GAIN.from(at(STATE.geq + b)) })

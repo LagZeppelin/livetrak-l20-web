@@ -67,14 +67,37 @@ test('reads the presets back from the captured state reply', () => {
   expect(ch(1, 'channel')).toMatchObject({ name: 'CH1', fader: -60, mute: true, recSelect: 'rec' })
   expect(ch(2, 'channel')).toMatchObject({ fader: 0, mute: false })
   expect(ch(3, 'channel')).toMatchObject({ fader: 10, pan: -100 })
-  expect(ch(1, 'eq')).toMatchObject({ low: 15, midGain: -15, midFreq: 8000, high: -15 })
+  expect(ch(1, 'eq')).toMatchObject({ low: 15, midGain: -15, midFreq: 7625, high: -15 })
   expect(ch(2, 'eq')).toMatchObject({ lowCut: true, lowCutHz: 600 })
   expect(send(1, 'A')).toMatchObject({ patch: { level: 10 } })
   expect(send(1, 'B')).toMatchObject({ patch: { level: 0 } })
   expect(send(1, 'F')).toMatchObject({ patch: { level: -60 } })
   expect(send(1, 'fx1')).toMatchObject({ patch: { level: 10 } })
   expect(send(1, 'fx2')).toMatchObject({ patch: { level: 0 } })
-  expect(cmds).toContainEqual({ type: 'bus', mix: 'fx2', patch: { effect: 3 } })
+  const bus = (mix: string) =>
+    cmds.find((c) => c.type === 'bus' && c.mix === mix && 'fader' in c.patch)
+  expect(bus('fx2')).toMatchObject({ patch: { effect: 3 } })
+  expect(bus('main')).toMatchObject({ patch: { fader: expect.closeTo(-18.3, 1) } }) // raw 30
+})
+
+test('uses the dB and frequency points read off the app in capture 3', () => {
+  const fader = (db: number) => encode({ type: 'channel', ch: 1, patch: { fader: db } })[0]![2]
+  expect([-60, -40, -20, -10, 0, 10].map(fader)).toEqual([0, 8, 27, 45, 82, 120])
+  const mid = (hz: number) => encode({ type: 'eq', ch: 1, patch: { midFreq: hz } })[0]![2]
+  expect([100, 1017, 8000].map(mid)).toEqual([0, 53, 96])
+  expect(decode([0xb0, 0x2e, 24])).toMatchObject({ patch: { lowCutHz: 101 } })
+  expect(encode({ type: 'send', ch: 1, mix: 'fx1', patch: { level: 10 } })).toEqual([
+    [0xb0, 0x34, 60],
+  ])
+  expect(encode({ type: 'bus', mix: 'main', patch: { mute: true } })).toEqual([[0xb9, 0x54, 1]])
+  expect(encode({ type: 'geq', band: 6, gain: 0 })).toEqual([[0xb6, 0x55, 30]])
+  for (const cmd of [
+    { type: 'channel', ch: 2, patch: { phase: true } },
+    { type: 'channel', ch: 2, patch: { solo: true } },
+    { type: 'bus', mix: 'main', patch: { mute: false } },
+    { type: 'geq', band: 14, gain: -3 },
+  ] as MixerCommand[])
+    expect(decode(encode(cmd)[0]!)).toEqual(cmd)
 })
 
 test('meters: channel n is byte 6+n; recorder clock counts h, min, s', () => {

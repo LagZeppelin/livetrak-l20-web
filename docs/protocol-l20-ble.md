@@ -1,6 +1,6 @@
 # L-20 Bluetooth-Protokoll
 
-Stand: zwei Mitschnitte von Ron vom 2026-11-02 (iPad, App „L-20 Control“, L-20 Firmware 1.23 mit BTA-1).
+Stand: drei Mitschnitte von Ron vom 2026-11-02 und 2026-11-04 (iPad, App „L-20 Control“, L-20 Firmware 1.23 mit BTA-1).
 Dateien in `/mnt/project-files/mitschnitte/`, Zeitenlisten daneben. Umgesetzt in `src/lib/l20Midi.ts`, Test mit
 dem echten Zustands-Dump in `src/lib/l20Midi.test.ts`.
 Dekodieren: `python3 tools/decode-pklg.py <datei.pklg>` (Meter ausgeblendet, `--all` zeigt sie).
@@ -29,45 +29,57 @@ Nach 5 Byte Kopf und 4 Byte (`08 05 00 00`) folgen 18 Kanalnamen à 9 Byte (Kana
 Block, der überwiegend aus Feldern mit **18 Byte (ein Byte pro Kanalzug)** besteht. Offsets ab Blockbeginn ✅
 (Werte wie bei den CCs unten):
 
-| Offset | Inhalt          |     | Offset     | Inhalt                   |
-| ------ | --------------- | --- | ---------- | ------------------------ |
-| 18     | Select          |     | 198        | Low Cut                  |
-| 36     | Mute            |     | 216        | Send FX 1                |
-| 90     | Pan             |     | 234        | Send FX 2                |
-| 126    | EQ High         |     | 252        | Fader                    |
-| 144    | EQ Mid-Frequenz |     | 270 + 18·k | Send Mix A…F (k = 0…5)   |
-| 162    | EQ Mid-Gain     |     | 378 / 379  | Effekttyp FX 1 / FX 2    |
-| 180    | EQ Low          |     | 416 … 430  | Master-GEQ, 15 Bänder ❓ |
+| Offset | Inhalt          |     | Offset     | Inhalt                 |
+| ------ | --------------- | --- | ---------- | ---------------------- |
+| 18     | Select          |     | 198        | Low Cut                |
+| 36     | Mute            |     | 216        | Send FX 1              |
+| 54     | Solo            |     | 234        | Send FX 2              |
+| 72     | Phase           |     |            |                        |
+| 90     | Pan             |     |            |                        |
+| 126    | EQ High         |     | 252        | Fader                  |
+| 144    | EQ Mid-Frequenz |     | 270 + 18·k | Send Mix A…F (k = 0…5) |
+| 162    | EQ Mid-Gain     |     | 378 / 379  | Effekttyp FX 1 / FX 2  |
+| 180    | EQ Low          |     | 380 … 387  | Effekt-Regler (s. u.)  |
+|        |                 |     | 392 … 397  | Mix-A…F-Ausgang        |
+|        |                 |     | 408        | Master-Fader           |
+|        |                 |     | 409 / 410  | FX-1- / FX-2-Return    |
+|        |                 |     | 416 … 430  | Master-GEQ, 15 Bänder  |
 
-Offen ❓: Solo, Phase, Master-/Mix-/FX-Return-Fader (vermutlich 408–414), Effekt-Parameter (380–387).
+Effekt-Regler 380…387 als MSB/LSB-Paare (Wert = MSB·128 + LSB): FX 1 Regler 1, FX 2 Regler 1, FX 1 Regler 2,
+FX 2 Regler 2 ✅. Die Einheit hängt vom Effekt ab (z. B. Delay 481 = 481 ms) und ist noch nicht umgesetzt ❓.
+Offen ❓: 411…414, Master-Mute.
 
 ## Steuerbefehle (Control Change)
 
 Kanal 1–16 liegt auf MIDI-Kanal 0–15 (`B0`…`BF`) ✅. **Kanal 17/18 und 19/20 nutzen die nächste CC-Nummer
 (n+1) auf MIDI-Kanal 0 bzw. 2** ✅ (z. B. Fader 17/18 = `B0 3D`, Mute 19/20 = `B2 31`).
 
-| Funktion                       | CC                                         | Werte                                                                           |
-| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| Select (Rec/Play)              | `08`                                       | 0 aus, 2 Rec (rot), 1 Play (orange; ohne Aufnahme antwortet das Gerät mit 0) ✅ |
-| Pan                            | `0C`                                       | 0 L, 50 Mitte, 100 R ✅                                                         |
-| EQ High / Mid-Gain / Low       | `14` / `1A` / `2C`                         | 0…60, 30 = 0 dB, 0,5-dB-Schritte ✅                                             |
-| EQ Mid-Frequenz                | `18`                                       | 0…95, ❓ log 100 Hz…8 kHz                                                       |
-| Low Cut                        | `2E`                                       | 0 aus, 1…56 = 40…600 Hz ✅ (Kurve ❓)                                           |
-| Mute / Solo                    | `30` / `32`                                | 1 an, 0 aus ✅                                                                  |
-| Send FX 1 / FX 2               | `34` / `36`                                | 0…60, **45 = 0 dB** ✅ (oberes Ende ❓)                                         |
-| Fader                          | `3C`                                       | 0…120, **82 = 0 dB** ✅ (Zwischenwerte linear ❓)                               |
-| Send Mix A / B / C / D / E / F | `3E` ❓ / `40` / `42` / `44` / `46` / `48` | wie Fader ✅                                                                    |
+| Funktion                       | CC                                      | Werte                                                                           |
+| ------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
+| Select (Rec/Play)              | `08`                                    | 0 aus, 2 Rec (rot), 1 Play (orange; ohne Aufnahme antwortet das Gerät mit 0) ✅ |
+| Pan                            | `0C`                                    | 0 L, 50 Mitte, 100 R ✅                                                         |
+| EQ High / Mid-Gain / Low       | `14` / `1A` / `2C`                      | 0…60, 30 = 0 dB, 0,5-dB-Schritte ✅                                             |
+| EQ Mid-Frequenz                | `18`                                    | 0…96 = 100 Hz…8 kHz, 53 = 1017 Hz ✅ (log dazwischen ❓)                        |
+| Low Cut                        | `2E`                                    | 0 aus, 1…56 = 40…600 Hz, 24 = 101,4 Hz ✅ (log dazwischen ❓)                   |
+| Phase                          | `0A`                                    | 1 an, 0 aus ✅                                                                  |
+| Mute / Solo                    | `30` / `32`                             | 1 an, 0 aus ✅                                                                  |
+| Send FX 1 / FX 2               | `34` / `36`                             | 0…60, **45 = 0 dB**, 60 = +10 dB ✅                                             |
+| Fader                          | `3C`                                    | 0 = −∞, 8 = −40, 27 = −20, 45 = −10, **82 = 0**, 120 = +10 dB ✅                |
+| Send Mix A / B / C / D / E / F | `3E` / `40` / `42` / `44` / `46` / `48` | wie Fader ✅                                                                    |
 
 Busse:
 
-| Funktion              | Nachricht                           |                                 |
-| --------------------- | ----------------------------------- | ------------------------------- |
-| Master-Fader          | `BA 54 vv`                          | ✅                              |
-| FX-1- / FX-2-Return   | `BC 50 vv` / `BD 50 vv`             | ✅                              |
-| Mix-A-Ausgang         | `B0 53 vv`                          | ✅; Mix B–F = `B1`…`B5 53` ❓   |
-| Effekttyp FX 1 / FX 2 | `B0 4E vv` / `B1 4E vv`             | Index in der Effektliste ✅     |
-| Master-GEQ            | `B6 55 vv` für ein Band (30 = 0 dB) | Zuordnung der anderen Bänder ❓ |
-| Ansicht in der App    | `B5 57 vv` (0 Main, 2…6 = Mix B…F)  | nur Anzeige, nicht nötig        |
+| Funktion              | Nachricht                                                                  |                                |
+| --------------------- | -------------------------------------------------------------------------- | ------------------------------ |
+| Master-Fader          | `BA 54 vv`                                                                 | ✅                             |
+| Master-Mute           | `B9 54 01`                                                                 | ✅ (aus = 00 ❓)               |
+| FX-1- / FX-2-Return   | `BC 50 vv` / `BD 50 vv`                                                    | ✅                             |
+| Mix-A…F-Ausgang       | `B0`…`B5 53 vv`                                                            | ✅ (Mix-Busse haben kein Mute) |
+| FX-Return je Mix      | `Bx 51 vv`: A FX1 = `B0`, A FX2 = `B1`, B FX1 = `B4`                       | ✅; Schema der übrigen ❓      |
+| Effekttyp FX 1 / FX 2 | `B0 4E vv` / `B1 4E vv`                                                    | Index in der Effektliste ✅    |
+| Effekt-Regler         | MSB/LSB: FX1 R1 `B4/B5 4E`, FX2 R1 `B6/B7`, FX1 R2 `BC/BD`, FX2 R2 `BE/BF` | ✅ (nicht umgesetzt)           |
+| Master-GEQ            | `Bb 55 vv`, Band b = MIDI-Kanal b                                          | 30 = 0 dB ✅                   |
+| Ansicht in der App    | `B5 57 vv` (0 Main, 2…6 = Mix B…F)                                         | nur Anzeige, nicht nötig       |
 
 Recorder ✅:
 
