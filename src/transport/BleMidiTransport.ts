@@ -44,6 +44,9 @@ const ECHO_MS = 400
  * Talks to a real L-20 (BTA-1) from Chrome/Edge via Web Bluetooth. connect() must run from a click.
  * Commands the mapping doesn't know yet are silently not sent (see docs/protocol-l20-ble.md).
  */
+const BATCH = 20
+const BATCH_PAUSE_MS = 60
+
 export class BleMidiTransport implements IMixerTransport {
   private device: Device | null = null
   private char: Characteristic | null = null
@@ -111,6 +114,7 @@ export class BleMidiTransport implements IMixerTransport {
     if (this.writing || !this.char) return
     this.writing = true
     try {
+      let n = 0
       for (
         let next = this.pending.entries().next();
         !next.done;
@@ -119,6 +123,8 @@ export class BleMidiTransport implements IMixerTransport {
         const [key, msg] = next.value
         this.pending.delete(key)
         await this.char.writeValueWithoutResponse(blePacket(msg))
+        // long bursts (loading a profile, ~500 values) go out in small batches so the L-20 keeps up
+        if (++n % BATCH === 0) await new Promise((r) => setTimeout(r, BATCH_PAUSE_MS))
       }
     } finally {
       this.writing = false

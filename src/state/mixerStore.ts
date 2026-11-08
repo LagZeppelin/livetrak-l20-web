@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { applyCommand, createMixer, type Mixer, type MixerCommand } from '@/lib/mixer'
+import { profileCommands, type Profile } from '@/lib/profile'
 import { BleMidiTransport } from '@/transport/BleMidiTransport'
 import { MockMixerTransport } from '@/transport/MockMixerTransport'
 import type { ConnectionStatus, IMixerTransport } from '@/transport/types'
@@ -19,6 +20,17 @@ interface MixerState {
   /** Applies a change locally and sends it to the mixer, mirroring it onto a stereo partner. */
   dispatch: (command: MixerCommand) => void
   toggleVisible: (ch: number) => void
+  /** Saved mixer settings, newest last. Kept in this browser for now; moves to the Pi hub later. */
+  profiles: Profile[]
+  /** Profile offered after connecting to the L-20, or null. */
+  defaultProfileId: string | null
+  /** Saves the current mixer as a new profile, or over `id` if given. */
+  saveProfile: (name: string, id?: string) => void
+  renameProfile: (id: string, name: string) => void
+  deleteProfile: (id: string) => void
+  setDefaultProfile: (id: string | null) => void
+  /** Sends every setting of the profile to the mixer. */
+  loadProfile: (id: string) => void
 }
 
 // shortcut: picked once per page load by URL (?l20 = real mixer); the WebSocket client to the Pi joins here later
@@ -72,9 +84,48 @@ export const useMixerStore = create<MixerState>()(
             ? s.visibleChannels.filter((c) => c !== ch)
             : [...s.visibleChannels, ch].sort((a, b) => a - b),
         })),
+      profiles: [],
+      defaultProfileId: null,
+      saveProfile: (name, id) => {
+        const profile: Profile = {
+          id: id ?? crypto.randomUUID(),
+          name,
+          savedAt: new Date().toISOString(),
+          mixer: get().mixer,
+        }
+        set((s) => ({
+          profiles: id
+            ? s.profiles.map((p) => (p.id === id ? profile : p))
+            : [...s.profiles, profile],
+        }))
+      },
+      renameProfile: (id, name) =>
+        set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? { ...p, name } : p)) })),
+      deleteProfile: (id) =>
+        set((s) => ({
+          profiles: s.profiles.filter((p) => p.id !== id),
+          defaultProfileId: s.defaultProfileId === id ? null : s.defaultProfileId,
+        })),
+      setDefaultProfile: (id) => set({ defaultProfileId: id }),
+      loadProfile: (id) => {
+        const profile = get().profiles.find((p) => p.id === id)
+        if (!profile) return
+        // the profile already holds both sides of each stereo pair, so no partner mirroring here
+        for (const cmd of profileCommands(get().mixer, profile.mixer)) {
+          set((s) => ({ mixer: applyCommand(s.mixer, cmd) }))
+          transport.send(cmd)
+        }
+      },
     }),
-    // only the phone's own channel choice survives a reload; mixer state always comes from the mixer
-    { name: 'l20-view', partialize: (s) => ({ visibleChannels: s.visibleChannels }) },
+    // the phone's channel choice and the profiles survive a reload; live mixer state always comes from the mixer
+    {
+      name: 'l20-view',
+      partialize: (s) => ({
+        visibleChannels: s.visibleChannels,
+        profiles: s.profiles,
+        defaultProfileId: s.defaultProfileId,
+      }),
+    },
   ),
 )
 

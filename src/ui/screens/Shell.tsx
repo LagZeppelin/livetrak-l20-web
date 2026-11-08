@@ -29,6 +29,7 @@ import {
   type View,
 } from '../mixView'
 import { AdminDialog, ConnectSnackbar } from './Admin'
+import { DefaultProfilePrompt, ProfilesDialog } from './Profiles'
 
 export function Shell({
   screen,
@@ -191,6 +192,7 @@ function TopBar() {
   const connect = useMixerStore((s) => s.connect)
   const source = useMixerStore((s) => s.source)
   const rec = recorder.state === 'recording'
+  const [profilesOpen, setProfilesOpen] = useState(false)
   const press = (button: TransportButton) => dispatch({ type: 'transport', button })
 
   return (
@@ -230,6 +232,11 @@ function TopBar() {
       >
         Speichern
       </Btn>
+      <Btn className="h-9 px-3" onClick={() => setProfilesOpen(true)}>
+        Profile
+      </Btn>
+      {profilesOpen && <ProfilesDialog onClose={() => setProfilesOpen(false)} />}
+      <DefaultProfilePrompt />
 
       <details className="relative mx-auto">
         <summary
