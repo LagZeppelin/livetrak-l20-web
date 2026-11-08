@@ -29,7 +29,7 @@ interface MixerState {
   renameProfile: (id: string, name: string) => void
   deleteProfile: (id: string) => void
   setDefaultProfile: (id: string | null) => void
-  /** Sends every setting that differs from the profile to the mixer. */
+  /** Sends every setting of the profile to the mixer. */
   loadProfile: (id: string) => void
 }
 

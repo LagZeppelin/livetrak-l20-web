@@ -1,11 +1,4 @@
-import {
-  FX_MIXES,
-  MONITOR_MIXES,
-  type Channel,
-  type Eq,
-  type Mixer,
-  type MixerCommand,
-} from './mixer'
+import { FX_MIXES, MONITOR_MIXES, type Mixer, type MixerCommand } from './mixer'
 
 /** A named copy of the whole mixer state, kept by the app (not one of the L-20's own scene slots). */
 export interface Profile {
@@ -18,15 +11,13 @@ export interface Profile {
 const CHANNEL_KEYS = ['name', 'color', 'fader', 'mute', 'solo', 'pan', 'phase'] as const
 const EQ_KEYS = ['on', 'lowCut', 'lowCutHz', 'low', 'midGain', 'midFreq', 'high'] as const
 
-/** Keys of `keys` whose value differs between a and b, as a patch with b's values. */
-function diff<T extends object, K extends keyof T>(a: T, b: T, keys: readonly K[]) {
-  const patch: Partial<Pick<T, K>> = {}
-  for (const k of keys) if (a[k] !== b[k]) patch[k] = b[k]
-  return Object.keys(patch).length ? patch : null
-}
+const pick = <T extends object, K extends keyof T>(o: T, keys: readonly K[]) =>
+  Object.fromEntries(keys.map((k) => [k, o[k]])) as Pick<T, K>
 
 /**
- * The commands that turn `current` into `target`, only for what differs.
+ * The commands that turn `current` into `target`. Every setting is sent, not only what differs,
+ * so values the app may not have read back from the mixer (e.g. EQ) are still set (Ron, Nov 8).
+ * Stereo links are app-side, so only those are diffed.
  * Recorder, REC/PLAY select and scene slot are left alone: they are live actions, not settings.
  */
 export function profileCommands(current: Mixer, target: Mixer): MixerCommand[] {
@@ -42,33 +33,21 @@ export function profileCommands(current: Mixer, target: Mixer): MixerCommand[] {
     if (c.linkedWith && c.linkedWith > c.id && now[c.id - 1] !== c.linkedWith)
       out.push({ type: 'link', ch: c.id, linked: true })
 
-  target.channels.forEach((t: Channel, i) => {
-    const c = current.channels[i]
-    if (!c) return
-    const patch = diff(c, t, CHANNEL_KEYS)
-    if (patch) out.push({ type: 'channel', ch: t.id, patch })
-    const eq = diff<Eq, (typeof EQ_KEYS)[number]>(c.eq, t.eq, EQ_KEYS)
-    if (eq) out.push({ type: 'eq', ch: t.id, patch: eq })
+  for (const t of target.channels) {
+    out.push({ type: 'channel', ch: t.id, patch: pick(t, CHANNEL_KEYS) })
+    out.push({ type: 'eq', ch: t.id, patch: pick(t.eq, EQ_KEYS) })
     for (const mix of [...MONITOR_MIXES, ...FX_MIXES])
-      if (c.sends[mix].level !== t.sends[mix].level)
-        out.push({ type: 'send', ch: t.id, mix, patch: { level: t.sends[mix].level } })
-  })
-
-  const main = diff(current.main, target.main, ['fader', 'mute'])
-  if (main) out.push({ type: 'bus', mix: 'main', patch: main })
-  for (const mix of MONITOR_MIXES) {
-    const p = diff(current.monitors[mix], target.monitors[mix], ['fader', 'mute'])
-    if (p) out.push({ type: 'bus', mix, patch: p })
+      out.push({ type: 'send', ch: t.id, mix, patch: { level: t.sends[mix].level } })
   }
-  for (const mix of FX_MIXES) {
-    const c = current.fx[mix]
-    const t = target.fx[mix]
-    const p: Partial<typeof t> = diff(c, t, ['fader', 'mute', 'effect']) ?? {}
-    if (c.params[0] !== t.params[0] || c.params[1] !== t.params[1]) p.params = t.params
-    if (Object.keys(p).length) out.push({ type: 'bus', mix, patch: p })
-  }
-  target.main.geq.forEach((gain, band) => {
-    if (current.main.geq[band] !== gain) out.push({ type: 'geq', band, gain })
-  })
+  out.push({ type: 'bus', mix: 'main', patch: pick(target.main, ['fader', 'mute']) })
+  for (const mix of MONITOR_MIXES)
+    out.push({ type: 'bus', mix, patch: pick(target.monitors[mix], ['fader', 'mute']) })
+  for (const mix of FX_MIXES)
+    out.push({
+      type: 'bus',
+      mix,
+      patch: pick(target.fx[mix], ['fader', 'mute', 'effect', 'params']),
+    })
+  target.main.geq.forEach((gain, band) => out.push({ type: 'geq', band, gain }))
   return out
 }

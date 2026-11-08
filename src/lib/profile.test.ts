@@ -26,5 +26,8 @@ test('profile commands turn the current mixer into the saved one', () => {
   expect(result.monitors).toEqual(target.monitors)
   expect(result.fx).toEqual(target.fx)
   expect(result.recorder.state).toBe('playing')
-  expect(profileCommands(result, target)).toEqual([])
+  // everything is sent again, even when nothing differs; links are not
+  const again = profileCommands(result, target)
+  expect(again.some((c) => c.type === 'eq' && c.ch === 20)).toBe(true)
+  expect(again.some((c) => c.type === 'link')).toBe(false)
 })
