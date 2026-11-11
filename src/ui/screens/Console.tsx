@@ -49,7 +49,10 @@ export function Console({
         {channels.map((c) =>
           // a stereo pair shares one card, split by a divider (same width as two strips + gap)
           c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith && !isFixedStereo(c.id) ? (
-            <div key={c.id} className="card flex w-[215px] shrink-0 justify-between">
+            <div
+              key={c.id}
+              className="card flex w-[215px] shrink-0 justify-between border-white/22!"
+            >
               <Strip c={c} mix={mix} onOpen={onOpen} bare />
               <div className="bg-line my-2.5 w-px shrink-0" />
               <Strip c={channels[c.linkedWith - 1]} mix={mix} onOpen={onOpen} bare />
