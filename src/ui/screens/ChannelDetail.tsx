@@ -70,16 +70,16 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </span>
           {c.name}
         </h1>
+        <Btn className="-ml-1 size-9" aria-label="Bearbeiten" onClick={() => setEditing(true)}>
+          <Icon name="edit" />
+        </Btn>
         {partner && !fixed && (
           <span className="text-fg2 text-sm">
             Stereo mit {channelNo(partner.id)} {partner.name}
           </span>
         )}
         {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
-        <Btn className="ml-auto h-9 px-4" onClick={() => setEditing(true)}>
-          <Icon name="edit" />
-          Bearbeiten
-        </Btn>
+        <div className="-mx-2 flex-1" />
         <Btn
           kind={partner ? 'on' : 'plain'}
           className={cn('h-9 px-4', fixed && 'hidden')}
