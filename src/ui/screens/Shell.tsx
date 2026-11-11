@@ -20,14 +20,7 @@ import {
   StatusPill,
   ValueBox,
 } from '../components/controls'
-import {
-  isFixedStereo,
-  mixLevel,
-  SLOT_COUNT,
-  slotChannel,
-  type Screen,
-  type View,
-} from '../mixView'
+import { isFixedStereo, mixLevel, slotChannel, type Screen, type View } from '../mixView'
 import { AdminDialog, ConnectSnackbar } from './Admin'
 import { DefaultProfilePrompt, ProfilesDialog } from './Profiles'
 
@@ -351,18 +344,20 @@ function TopBar({
  * `highlight` marks the channels currently on screen.
  */
 export function Overview({
+  slots,
   highlight,
   onOpen,
   onScroll,
 }: {
-  /** first and last slot on screen; slots count a fixed stereo pair once (see slotOf) */
+  /** slots to list (all, or only the "Nur Select" ones); a fixed stereo pair is one slot (see slotOf) */
+  slots: number[]
+  /** first and last position (1-based index into `slots`) on screen; none when 0 */
   highlight: [number, number]
   onOpen: (slot: number) => void
   onScroll: (dxSlots: number) => void
 }) {
   const meters = useMixerStore((s) => s.meters)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
-  const items = Array.from({ length: SLOT_COUNT }, (_, i) => i + 1)
   const STEP = 33
 
   return (
@@ -392,14 +387,15 @@ export function Overview({
     >
       <div className="relative flex">
         <div
+          hidden={highlight[0] < 1}
           className="border-fg/70 bg-fg/5 absolute -inset-y-1 rounded-lg border-[1.5px] transition-[left,width]"
           style={{
             left: (highlight[0] - 1) * STEP - 4,
-            width: (highlight[1] - highlight[0]) * STEP + 40,
+            width: (Math.min(highlight[1], slots.length) - highlight[0]) * STEP + 40,
           }}
         />
-        {items.map((slot) => {
-          const on = slot >= highlight[0] && slot <= highlight[1]
+        {slots.map((slot, i) => {
+          const on = i + 1 >= highlight[0] && i + 1 <= highlight[1]
           const ch = slotChannel(slot)
           const stereo = isFixedStereo(ch)
           return (

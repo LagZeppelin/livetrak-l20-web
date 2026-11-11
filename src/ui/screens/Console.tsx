@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   EFFECTS,
   NEXT_REC_SELECT,
@@ -12,6 +13,7 @@ import { Btn, Fader, Slider, Icon, Label, ValueBox } from '../components/control
 import { MiniEq, MiniGeq } from '../components/EqGraph'
 import {
   channelNo,
+  shownBySelect,
   REC_SELECT_TITLE,
   isFixedStereo,
   linkCommand,
@@ -37,22 +39,29 @@ export function Console({
   onVisible: (range: [number, number]) => void
 }) {
   const channels = useMixerStore((s) => s.mixer.channels)
-  const shown = (c: Channel) =>
-    !onlySelected ||
-    c.recSelect !== 'off' ||
-    (!!c.linkedWith && channels[c.linkedWith - 1].recSelect !== 'off')
+  const shown = (c: Channel) => !onlySelected || shownBySelect(channels, c)
+  const strips = useRef<HTMLDivElement>(null)
+  // a slot counts as on screen when more than half of it shows; positions count shown strips only
+  const report = (el: HTMLDivElement) =>
+    onVisible([
+      Math.round(el.scrollLeft / STRIP_W) + 1,
+      Math.round((el.scrollLeft + el.clientWidth) / STRIP_W),
+    ])
+  useEffect(() => {
+    if (!strips.current) return
+    strips.current.scrollLeft = 0
+    report(strips.current)
+    // only on toggle: jump back to the first strip and refresh the overview frame
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onlySelected])
   const none = onlySelected && !channels.some(shown)
   return (
     <div className="flex h-full gap-2">
       <div
         id="strips"
         className="flex min-w-0 flex-1 [scrollbar-width:none] gap-[7px] overflow-x-auto"
-        onScroll={(e) => {
-          const el = e.currentTarget
-          const first = Math.round(el.scrollLeft / STRIP_W) + 1
-          // a slot counts as on screen when more than half of it shows
-          onVisible([first, Math.round((el.scrollLeft + el.clientWidth) / STRIP_W)])
-        }}
+        ref={strips}
+        onScroll={(e) => report(e.currentTarget)}
       >
         {none && <p className="text-fg2 m-auto text-sm">Bei keinem Kanal ist Select (Tape) an.</p>}
         {channels.filter(shown).map((c) =>

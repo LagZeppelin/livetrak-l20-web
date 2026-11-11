@@ -5,7 +5,7 @@ import { ChannelDetail } from './screens/ChannelDetail'
 import { MasterDetail } from './screens/MasterDetail'
 import { Console, FxReturns, MasterStrip, MonitorPanel, STRIP_W } from './screens/Console'
 import { Phone, PhoneEntry } from './screens/Phone'
-import { slotChannel, slotOf, type View } from './mixView'
+import { shownBySelect, SLOT_COUNT, slotChannel, slotOf, type View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
 
 // ?phone = a musician's phone (joins, waits for the admin); ?phone=C skips that for testing
@@ -28,6 +28,11 @@ function Ipad() {
   const [detail, setDetail] = useState<number | 'master' | null>(null)
   const [visible, setVisible] = useState<[number, number]>([1, 8])
   const [onlySelected, setOnlySelected] = useState(false)
+  const channels = useMixerStore((s) => s.mixer.channels)
+  const slots = Array.from({ length: SLOT_COUNT }, (_, i) => i + 1).filter(
+    (slot) => !onlySelected || shownBySelect(channels, channels[slotChannel(slot) - 1]),
+  )
+  const detailPos = typeof detail === 'number' ? slots.indexOf(slotOf(detail)) + 1 : 0
 
   const scrollTo = (ch: number) =>
     document.getElementById(`strip-${ch}`)?.scrollIntoView({ inline: 'start', block: 'nearest' })
@@ -54,7 +59,8 @@ function Ipad() {
       }
       overview={
         <Overview
-          highlight={typeof detail === 'number' ? [slotOf(detail), slotOf(detail)] : visible}
+          slots={slots}
+          highlight={typeof detail === 'number' ? [detailPos, detailPos] : visible}
           onOpen={(slot) => setDetail(slotChannel(slot))}
           onScroll={(dx) => document.getElementById('strips')?.scrollBy({ left: dx * STRIP_W })}
         />
