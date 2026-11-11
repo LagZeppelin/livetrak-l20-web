@@ -146,11 +146,12 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             className="mt-2 h-8"
             aria-pressed={c.recSelect !== 'off'}
             title={REC_SELECT_TITLE[c.recSelect]}
+            aria-label={`Select: ${REC_SELECT_TITLE[c.recSelect]}`}
             onClick={() =>
               dispatch({ type: 'channel', ch, patch: { recSelect: NEXT_REC_SELECT[c.recSelect] } })
             }
           >
-            Select
+            <Icon name="tape" className="size-5" />
           </Btn>
           <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(c.fader)}</ValueBox>
           <Fader
