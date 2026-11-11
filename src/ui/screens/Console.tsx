@@ -134,6 +134,7 @@ function Strip({
           className="h-8 flex-1"
           aria-pressed={c.recSelect !== 'off'}
           title={REC_SELECT_TITLE[c.recSelect]}
+          aria-label={`Select: ${REC_SELECT_TITLE[c.recSelect]}`}
           onClick={() =>
             dispatch({
               type: 'channel',
@@ -142,7 +143,7 @@ function Strip({
             })
           }
         >
-          Select
+          <Icon name="tape" className="size-5" />
         </Btn>
         {!fixed && (
           <Btn

@@ -369,5 +369,13 @@ const ICONS = {
   caret: <path d="m7 10 5 5 5-5" />,
   check: <path d="m5 12 5 5 9-10" />,
   edit: <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />,
+  tape: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <circle cx="8" cy="11" r="2" />
+      <circle cx="16" cy="11" r="2" />
+      <path d="M8 13h8M7 19l1.5-3h7l1.5 3" />
+    </>
+  ),
   sliders: <path d="M4 7h10m4 0h2M4 17h4m4 0h8M16 5v4M10 15v4" />,
 }
