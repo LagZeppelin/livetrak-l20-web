@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   EFFECTS,
   NEXT_REC_SELECT,
@@ -5,13 +6,14 @@ import {
   type FxMixId,
   type MonitorMixId,
 } from '@/lib/mixer'
-import { dbToPos, formatDb, formatPan } from '@/lib/scale'
+import { formatDb, formatPan } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { Btn, Fader, Slider, Icon, Label, ValueBox } from '../components/controls'
 import { MiniEq, MiniGeq } from '../components/EqGraph'
 import {
   channelNo,
+  shownBySelect,
   REC_SELECT_TITLE,
   isFixedStereo,
   linkCommand,
@@ -27,29 +29,48 @@ export function Console({
   mix,
   onOpen,
   onVisible,
+  onlySelected,
 }: {
   mix: View
+  /** hide strips whose Select is off; a stereo pair stays when either side is on */
+  onlySelected?: boolean
   onOpen: (ch: number) => void
   /** first and last strip slot on screen (see slotOf) */
   onVisible: (range: [number, number]) => void
 }) {
   const channels = useMixerStore((s) => s.mixer.channels)
+  const shown = (c: Channel) => !onlySelected || shownBySelect(channels, c)
+  const strips = useRef<HTMLDivElement>(null)
+  // a slot counts as on screen when more than half of it shows; positions count shown strips only
+  const report = (el: HTMLDivElement) =>
+    onVisible([
+      Math.round(el.scrollLeft / STRIP_W) + 1,
+      Math.round((el.scrollLeft + el.clientWidth) / STRIP_W),
+    ])
+  useEffect(() => {
+    if (!strips.current) return
+    strips.current.scrollLeft = 0
+    report(strips.current)
+    // only on toggle: jump back to the first strip and refresh the overview frame
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onlySelected])
+  const none = onlySelected && !channels.some(shown)
   return (
     <div className="flex h-full gap-2">
       <div
         id="strips"
         className="flex min-w-0 flex-1 [scrollbar-width:none] gap-[7px] overflow-x-auto"
-        onScroll={(e) => {
-          const el = e.currentTarget
-          const first = Math.round(el.scrollLeft / STRIP_W) + 1
-          // a slot counts as on screen when more than half of it shows
-          onVisible([first, Math.round((el.scrollLeft + el.clientWidth) / STRIP_W)])
-        }}
+        ref={strips}
+        onScroll={(e) => report(e.currentTarget)}
       >
-        {channels.map((c) =>
+        {none && <p className="text-fg2 m-auto text-sm">Bei keinem Kanal ist Select (Tape) an.</p>}
+        {channels.filter(shown).map((c) =>
           // a stereo pair shares one card, split by a divider (same width as two strips + gap)
           c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith && !isFixedStereo(c.id) ? (
-            <div key={c.id} className="card flex w-[215px] shrink-0 justify-between">
+            <div
+              key={c.id}
+              className="card flex w-[215px] shrink-0 justify-between border-white/22!"
+            >
               <Strip c={c} mix={mix} onOpen={onOpen} bare />
               <div className="bg-line my-2.5 w-px shrink-0" />
               <Strip c={channels[c.linkedWith - 1]} mix={mix} onOpen={onOpen} bare />
@@ -110,22 +131,7 @@ function Strip({
       <button type="button" aria-label="EQ öffnen" className="mt-1.5" onClick={() => onOpen(c.id)}>
         <MiniEq eq={c.eq} />
       </button>
-      {!send && (
-        <div className="border-line mt-2 space-y-1 border-t pt-2">
-          {(['fx1', 'fx2'] as FxMixId[]).map((fx) => (
-            <div key={fx} className="flex items-center gap-1.5">
-              <span className="text-fg3 font-mono text-[9px]">{fx.toUpperCase()}</span>
-              <div className="bg-track h-1 flex-1 rounded-full">
-                <div
-                  className="bg-fg2 h-full rounded-full"
-                  style={{ width: `${(1 - dbToPos(c.sends[fx].level)) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="border-line mt-2 grid grid-cols-2 gap-1.5 border-t pt-2">
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
         <Btn
           kind={c.mute ? 'mute' : 'plain'}
           className="h-8"
@@ -143,21 +149,36 @@ function Strip({
           S
         </Btn>
       </div>
-      <Btn
-        kind={c.recSelect === 'off' ? 'plain' : c.recSelect}
-        className="mt-2 h-8"
-        aria-pressed={c.recSelect !== 'off'}
-        title={REC_SELECT_TITLE[c.recSelect]}
-        onClick={() =>
-          dispatch({
-            type: 'channel',
-            ch: c.id,
-            patch: { recSelect: NEXT_REC_SELECT[c.recSelect] },
-          })
-        }
-      >
-        Select
-      </Btn>
+      <div className="mt-2 flex gap-1.5">
+        <Btn
+          kind={c.recSelect === 'off' ? 'plain' : c.recSelect}
+          className="h-8 flex-1"
+          aria-pressed={c.recSelect !== 'off'}
+          title={REC_SELECT_TITLE[c.recSelect]}
+          aria-label={`Select: ${REC_SELECT_TITLE[c.recSelect]}`}
+          onClick={() =>
+            dispatch({
+              type: 'channel',
+              ch: c.id,
+              patch: { recSelect: NEXT_REC_SELECT[c.recSelect] },
+            })
+          }
+        >
+          <Icon name="tape" className="size-5" />
+        </Btn>
+        {!fixed && (
+          <Btn
+            kind={c.linkedWith ? 'on' : 'plain'}
+            className="h-8 w-8 shrink-0"
+            aria-label={c.linkedWith ? `Stereo-Link mit ${c.linkedWith} lösen` : 'Stereo-Link'}
+            aria-pressed={!!c.linkedWith}
+            disabled={!link}
+            onClick={() => link && dispatch(link)}
+          >
+            <Icon name="link" className="size-4" />
+          </Btn>
+        )}
+      </div>
       <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(level)}</ValueBox>
       <Fader
         db={level}
@@ -168,7 +189,7 @@ function Strip({
       />
       {!fixed && (
         <>
-          <div className="border-line mt-2 border-t pt-2">
+          <div className="mt-2">
             <div className="text-fg3 flex justify-between font-mono text-[10px]">
               <span>PAN</span>
               <span className="text-fg">{formatPan(c.pan)}</span>
@@ -187,18 +208,6 @@ function Strip({
                 valueText={formatPan(c.pan)}
               />
             )}
-          </div>
-          <div className="border-line mt-2 border-t pt-2">
-            <Btn
-              kind={c.linkedWith ? 'on' : 'plain'}
-              className="mx-auto h-7 w-9"
-              aria-label={c.linkedWith ? `Stereo-Link mit ${c.linkedWith} lösen` : 'Stereo-Link'}
-              aria-pressed={!!c.linkedWith}
-              disabled={!link}
-              onClick={() => link && dispatch(link)}
-            >
-              <Icon name="link" className="size-4" />
-            </Btn>
           </div>
         </>
       )}
@@ -251,7 +260,7 @@ function FxStrip({ id }: { id: FxMixId }) {
         db={bus.fader}
         label={`Fader ${id}`}
         onChange={(db) => dispatch({ type: 'bus', mix: id, patch: { fader: db } })}
-        levels={[left, right]}
+        levels={[Math.max(left, right)]}
         handle="sm"
       />
     </section>
@@ -270,7 +279,7 @@ export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
       <button type="button" aria-label="Master-EQ öffnen" onClick={onOpenEq}>
         <MiniGeq geq={main.geq} />
       </button>
-      <div className="mt-auto grid grid-cols-2 gap-1.5">
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
         <Btn
           kind={main.mute ? 'mute' : 'plain'}
           className="h-8"
@@ -294,7 +303,7 @@ export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
         </Btn>
       </div>
       <ValueBox className="mx-auto mt-2 mb-2 w-[70px]">{formatDb(main.fader)}</ValueBox>
-      <div className="flex h-[62%] min-h-0">
+      <div className="flex min-h-0 flex-1">
         <Fader
           db={main.fader}
           onChange={(db) => dispatch({ type: 'bus', mix: 'main', patch: { fader: db } })}

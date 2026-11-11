@@ -24,7 +24,7 @@ export function MiniGeq({ geq }: { geq: number[] }) {
     <svg
       viewBox={`0 0 ${W} 60`}
       preserveAspectRatio="none"
-      className="bg-raised/60 h-12 w-full rounded"
+      className="bg-raised/60 h-8 w-full rounded"
     >
       <line x1="0" y1="30" x2={W} y2="30" stroke="#3a3f4b" strokeDasharray="6 6" />
       <polyline
@@ -45,7 +45,7 @@ export function MiniEq({ eq }: { eq: Eq }) {
     <svg
       viewBox={`0 0 ${W} 60`}
       preserveAspectRatio="none"
-      className="bg-raised/60 h-12 w-full rounded"
+      className="bg-raised/60 h-8 w-full rounded"
     >
       <line x1="0" y1="30" x2={W} y2="30" stroke="#3a3f4b" strokeDasharray="6 6" />
       <path

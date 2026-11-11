@@ -191,7 +191,7 @@ export function Slider({
         className={cn(
           'bg-thumb absolute -translate-1/2 rounded-full shadow-[0_2px_4px_rgb(0_0_0/0.6)]',
           y ? 'left-1/2' : 'top-1/2',
-          handle === 'lg' ? 'size-7' : 'size-4',
+          handle === 'lg' ? 'size-6' : 'size-4',
         )}
         style={at(pos)}
       />
@@ -369,5 +369,13 @@ const ICONS = {
   caret: <path d="m7 10 5 5 5-5" />,
   check: <path d="m5 12 5 5 9-10" />,
   edit: <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />,
+  tape: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <circle cx="8" cy="11" r="2" />
+      <circle cx="16" cy="11" r="2" />
+      <path d="M8 13h8M7 19l1.5-3h7l1.5 3" />
+    </>
+  ),
   sliders: <path d="M4 7h10m4 0h2M4 17h4m4 0h8M16 5v4M10 15v4" />,
 }

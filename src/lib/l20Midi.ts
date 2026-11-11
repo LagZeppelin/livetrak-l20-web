@@ -256,14 +256,18 @@ export function decode(msg: Msg): MixerCommand | null {
   return mix ? send(mix, FADER.from(v)) : null
 }
 
-/** Recorder position: the L-20 counts on B8–BB 58 (hours?, minutes, seconds); `digits` keeps the last values. */
+/**
+ * Recorder counters on CC 58: B8–BB = position, BC–BF = remaining time (❓), each (?, hours, minutes, seconds).
+ * `digits` keeps the last values; a counter is reported when its seconds byte arrives.
+ */
 export function decodeClock(msg: Msg, digits: number[]): MixerCommand | null {
   const m = msg[0]! & 0x0f
-  if ((msg[0]! & 0xf0) !== 0xb0 || msg[1] !== 0x58 || m < 0x08 || m > 0x0b) return null
+  if ((msg[0]! & 0xf0) !== 0xb0 || msg[1] !== 0x58 || m < 0x08) return null
   digits[m - 8] = msg[2]!
-  if (m !== 0x0b) return null
-  const [, h = 0, min = 0, s = 0] = digits
-  return { type: 'recorder', patch: { position: (h * 60 + min) * 60 + s } }
+  if (m !== 0x0b && m !== 0x0f) return null
+  const [, h = 0, min = 0, s = 0] = digits.slice(m - 11)
+  const secs = (h * 60 + min) * 60 + s
+  return { type: 'recorder', patch: m === 0x0b ? { position: secs } : { remaining: secs } }
 }
 
 /** Offsets of 18-byte arrays (one byte per strip: 1–16, 17/18, 19/20) in the state block after the names. */

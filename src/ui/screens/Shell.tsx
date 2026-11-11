@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   MONITOR_MIXES,
@@ -20,24 +20,22 @@ import {
   StatusPill,
   ValueBox,
 } from '../components/controls'
-import {
-  isFixedStereo,
-  mixLevel,
-  SLOT_COUNT,
-  slotChannel,
-  type Screen,
-  type View,
-} from '../mixView'
+import { isFixedStereo, mixLevel, slotChannel, type Screen, type View } from '../mixView'
 import { AdminDialog, ConnectSnackbar } from './Admin'
 import { DefaultProfilePrompt, ProfilesDialog } from './Profiles'
 
 export function Shell({
+  onlySelected,
+  onOnlySelected,
   screen,
   onScreen,
   overview,
   aside,
   children,
 }: {
+  /** strips filtered to channels whose Select (tape) is on */
+  onlySelected: boolean
+  onOnlySelected: (on: boolean) => void
   screen: Screen
   onScreen: (screen: Screen) => void
   overview: ReactNode
@@ -66,8 +64,8 @@ export function Shell({
         <PhonesButton />
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main className="min-h-0 flex-1 p-4 pb-3">{children}</main>
+        <TopBar onlySelected={onlySelected} onOnlySelected={onOnlySelected} />
+        <main className="min-h-0 flex-1 px-4 pt-0 pb-3">{children}</main>
         {overview}
       </div>
       <aside className="border-line bg-sidebar/85 flex shrink-0 flex-col border-l py-3">
@@ -183,7 +181,15 @@ const REC_LABEL: Record<RecorderState, string> = {
   paused: 'PAUSE',
 }
 
-function TopBar() {
+const SHOW_SCENES = false
+
+function TopBar({
+  onlySelected,
+  onOnlySelected,
+}: {
+  onlySelected: boolean
+  onOnlySelected: (on: boolean) => void
+}) {
   const scene = useMixerStore((s) => s.mixer.scene)
   const sceneNames = useMixerStore((s) => s.mixer.sceneNames)
   const recorder = useMixerStore((s) => s.mixer.recorder)
@@ -194,51 +200,78 @@ function TopBar() {
   const rec = recorder.state === 'recording'
   const [profilesOpen, setProfilesOpen] = useState(false)
   const press = (button: TransportButton) => dispatch({ type: 'transport', button })
+  const { position, remaining } = recorder
+  const progress = remaining === undefined ? 0 : position / Math.max(1, position + remaining)
+  // the recorder menu closes as soon as anything outside it is touched
+  const recMenu = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const close = (e: PointerEvent) => {
+      const menu = recMenu.current
+      if (menu?.open && !menu.contains(e.target as Node)) menu.open = false
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [])
 
   return (
-    <header className="border-line flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <label className="border-line relative flex h-9 w-46 items-center rounded border bg-[rgb(22_25_32/0.55)] px-3.5 text-sm font-medium">
-        <span className="truncate">
-          {scene ? `Szene ${scene}` : 'Szene –'}
-          {scene && (
-            <span className="text-fg2 ml-1.5 font-normal">
-              {sceneNames[scene - 1].replace(/^Szene \d+$/, '')}
+    <header className="flex h-16 shrink-0 items-center gap-2 px-4">
+      {/* Szenen-Auswahl auf Rons Wunsch vorerst ausgeblendet (iPad mini zu eng); SHOW_SCENES = true holt sie zurück */}
+      {SHOW_SCENES && (
+        <>
+          <label className="border-line relative flex h-9 w-46 items-center rounded border bg-[rgb(22_25_32/0.55)] px-3.5 text-sm font-medium">
+            <span className="truncate">
+              {scene ? `Szene ${scene}` : 'Szene –'}
+              {scene && (
+                <span className="text-fg2 ml-1.5 font-normal">
+                  {sceneNames[scene - 1].replace(/^Szene \d+$/, '')}
+                </span>
+              )}
             </span>
-          )}
-        </span>
-        <Icon name="caret" className="text-fg2 ml-auto size-4" />
-        <select
-          aria-label="Szene laden"
-          className="absolute inset-0 opacity-0"
-          value={scene ?? ''}
-          onChange={(e) =>
-            dispatch({ type: 'scene', action: 'recall', slot: Number(e.target.value) })
-          }
-        >
-          <option value="" disabled>
-            Szene laden…
-          </option>
-          {sceneNames.map((n, i) => (
-            <option key={i} value={i + 1}>
-              {i + 1} · {n}
-            </option>
-          ))}
-        </select>
-      </label>
-      <Btn
-        className="h-9 px-3"
-        disabled={!scene}
-        onClick={() => scene && dispatch({ type: 'scene', action: 'save', slot: scene })}
-      >
-        Speichern
-      </Btn>
+            <Icon name="caret" className="text-fg2 ml-auto size-4" />
+            <select
+              aria-label="Szene laden"
+              className="absolute inset-0 opacity-0"
+              value={scene ?? ''}
+              onChange={(e) =>
+                dispatch({ type: 'scene', action: 'recall', slot: Number(e.target.value) })
+              }
+            >
+              <option value="" disabled>
+                Szene laden…
+              </option>
+              {sceneNames.map((n, i) => (
+                <option key={i} value={i + 1}>
+                  {i + 1} · {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Btn
+            className="h-9 px-3"
+            disabled={!scene}
+            onClick={() => scene && dispatch({ type: 'scene', action: 'save', slot: scene })}
+          >
+            Speichern
+          </Btn>
+        </>
+      )}
       <Btn className="h-9 px-3" onClick={() => setProfilesOpen(true)}>
         Profile
+      </Btn>
+      <Btn
+        kind={onlySelected ? 'on' : 'plain'}
+        className="size-9"
+        aria-label="Nur Kanäle mit Select (Tape) zeigen"
+        aria-pressed={onlySelected}
+        title="Nur Kanäle mit Select (Tape) zeigen"
+        onClick={() => onOnlySelected(!onlySelected)}
+      >
+        <Icon name="tape" className="size-5" />
       </Btn>
       {profilesOpen && <ProfilesDialog onClose={() => setProfilesOpen(false)} />}
       <DefaultProfilePrompt />
 
-      <details className="relative mx-auto">
+      <details ref={recMenu} className="relative mx-auto">
         <summary
           className={cn(
             'flex h-9 w-50 cursor-pointer list-none items-center gap-2 rounded-full border px-3.5',
@@ -256,31 +289,54 @@ function TopBar() {
           </span>
           <Icon name="caret" className="text-fg2 size-4" />
         </summary>
-        <div className="bg-surf absolute top-11 left-1/2 z-20 grid w-56 -translate-x-1/2 grid-cols-2 gap-2 rounded-lg border border-white/12 p-2 shadow-[0_24px_64px_rgb(0_0_0/0.7)]">
-          <Btn
-            kind={['standby', 'recording', 'recPaused'].includes(recorder.state) ? 'rec' : 'plain'}
-            className={cn('h-11', recorder.state === 'recPaused' && 'animate-pulse')}
-            onClick={() => press('rec')}
-          >
-            ● Rec
+        <div className="bg-surf absolute top-11 left-1/2 z-20 grid w-64 -translate-x-1/2 grid-cols-6 gap-2 rounded-lg border border-white/12 p-3 shadow-[0_24px_64px_rgb(0_0_0/0.7)]">
+          <div className="col-span-6 mb-1">
+            <div
+              role="progressbar"
+              aria-label="Fortschritt der Aufnahme"
+              aria-valuenow={Math.round(progress * 100)}
+              className="h-3 overflow-hidden rounded-full bg-white/12"
+            >
+              <div
+                className={cn('h-full rounded-full', rec ? 'bg-bad' : 'bg-fg')}
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+            <div className="text-fg2 mt-1 flex justify-between font-mono text-[11px]">
+              <span>{formatTime(recorder.position)}</span>
+              {recorder.remaining !== undefined && <span>−{formatTime(recorder.remaining)}</span>}
+            </div>
+          </div>
+          <Btn className="col-span-2 h-11" aria-label="Stop" onClick={() => press('stop')}>
+            ■
           </Btn>
           <Btn
             kind={recorder.state === 'playing' ? 'on' : 'plain'}
-            className={cn('h-11', recorder.state === 'paused' && 'animate-pulse')}
+            className={cn('col-span-2 h-11', recorder.state === 'paused' && 'animate-pulse')}
+            aria-label="Play / Pause"
             onClick={() => press('play')}
           >
-            ▶ ❚❚ Play
+            ▶ ❚❚
           </Btn>
-          <Btn className="col-span-2 h-11" onClick={() => press('stop')}>
-            ■ Stop
+          <Btn
+            kind={['standby', 'recording', 'recPaused'].includes(recorder.state) ? 'rec' : 'plain'}
+            className={cn('col-span-2 h-11', recorder.state === 'recPaused' && 'animate-pulse')}
+            aria-label="Record"
+            onClick={() => press('rec')}
+          >
+            ●
           </Btn>
-          <Btn className="h-11" aria-label="1 Minute zurück" onClick={() => press('rew')}>
+          <Btn
+            className="col-span-3 h-11"
+            aria-label="1 Minute zurück"
+            onClick={() => press('rew')}
+          >
             ◀◀ 1 min
           </Btn>
-          <Btn className="h-11" aria-label="1 Minute vor" onClick={() => press('ff')}>
+          <Btn className="col-span-3 h-11" aria-label="1 Minute vor" onClick={() => press('ff')}>
             1 min ▶▶
           </Btn>
-          <p className="text-fg2 col-span-2 px-1 text-xs">
+          <p className="text-fg2 col-span-6 px-1 text-xs">
             {recorder.state === 'standby'
               ? 'Aufnahme bereit: Play startet, Rec bricht ab.'
               : recorder.state === 'recPaused'
@@ -323,23 +379,25 @@ function TopBar() {
  * `highlight` marks the channels currently on screen.
  */
 export function Overview({
+  slots,
   highlight,
   onOpen,
   onScroll,
 }: {
-  /** first and last slot on screen; slots count a fixed stereo pair once (see slotOf) */
+  /** slots to list (all, or only the "Nur Select" ones); a fixed stereo pair is one slot (see slotOf) */
+  slots: number[]
+  /** first and last position (1-based index into `slots`) on screen; none when 0 */
   highlight: [number, number]
   onOpen: (slot: number) => void
   onScroll: (dxSlots: number) => void
 }) {
   const meters = useMixerStore((s) => s.meters)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
-  const items = Array.from({ length: SLOT_COUNT }, (_, i) => i + 1)
   const STEP = 33
 
   return (
     <div
-      className="border-line bg-sidebar/85 flex h-17 shrink-0 touch-none items-center border-t px-4"
+      className="border-line bg-sidebar/85 flex h-12 shrink-0 touch-none items-center border-t px-4"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
         drag.current = { x: e.clientX, moved: false }
@@ -364,42 +422,48 @@ export function Overview({
     >
       <div className="relative flex">
         <div
-          className="border-fg/70 bg-fg/5 absolute -inset-y-2 rounded-lg border-[1.5px] transition-[left,width]"
+          hidden={highlight[0] < 1}
+          className="border-fg/70 bg-fg/5 absolute -inset-y-1 rounded-lg border-[1.5px] transition-[left,width]"
           style={{
             left: (highlight[0] - 1) * STEP - 4,
-            width: (highlight[1] - highlight[0]) * STEP + 40,
+            width: (Math.min(highlight[1], slots.length) - highlight[0]) * STEP + 40,
           }}
         />
-        {items.map((slot) => {
-          const on = slot >= highlight[0] && slot <= highlight[1]
+        {slots.map((slot, i) => {
+          const on = i + 1 >= highlight[0] && i + 1 <= highlight[1]
           const ch = slotChannel(slot)
           const stereo = isFixedStereo(ch)
           return (
             <div
               key={slot}
               data-ch={slot}
-              className="relative flex w-[33px] flex-col items-center py-1.5"
+              className="relative flex w-[33px] items-center justify-center gap-1 py-1"
             >
               <span
                 className={cn(
                   'font-mono',
-                  stereo ? 'text-[9px] leading-[16.5px]' : 'text-[11px]',
+                  'text-right',
+                  stereo ? 'w-3 text-[9px] leading-[11px]' : 'text-[11px]',
                   on ? 'font-medium' : 'text-fg2',
                 )}
               >
-                {stereo ? `${ch}·${ch + 1}` : ch}
+                {stereo ? (
+                  <>
+                    {ch}
+                    <br />
+                    {ch + 1}
+                  </>
+                ) : (
+                  ch
+                )}
               </span>
-              <div className="mt-1 flex h-6 gap-0.5">
+              <div className="flex h-6 gap-0.5">
                 <Meter level={meters[ch - 1]} />
                 {stereo && <Meter level={meters[ch]} />}
               </div>
             </div>
           )
         })}
-      </div>
-      <div className="ml-auto text-right text-[11px] leading-[18px] whitespace-nowrap">
-        <div className="text-fg2">Tippen: Kanal öffnen</div>
-        <div className="text-fg3">Halten und ziehen: scrollen</div>
       </div>
     </div>
   )

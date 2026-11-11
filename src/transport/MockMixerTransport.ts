@@ -46,6 +46,9 @@ export function createDemoMixer(): Mixer {
   return mixer
 }
 
+/** Length of the demo take, so the progress bar has something to show. */
+const DEMO_TAKE_S = 240
+
 /**
  * Offline stand-in for the L-20: keeps its own state, stores scenes,
  * runs a fake recorder clock and emits fake meters.
@@ -111,8 +114,9 @@ export class MockMixerTransport implements IMixerTransport {
       (recorder.state === 'playing' || recorder.state === 'recording')
     ) {
       const position = recorder.position + 1
-      this.mixer = applyCommand(this.mixer, { type: 'recorder', patch: { position } })
-      this.emit({ type: 'recorder', patch: { position } })
+      const patch = { position, remaining: Math.max(0, DEMO_TAKE_S - position) }
+      this.mixer = applyCommand(this.mixer, { type: 'recorder', patch })
+      this.emit({ type: 'recorder', patch })
     }
   }
 }

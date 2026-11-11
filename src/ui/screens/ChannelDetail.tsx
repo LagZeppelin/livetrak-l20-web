@@ -70,27 +70,20 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           </span>
           {c.name}
         </h1>
-        {partner && !fixed && (
-          <span className="text-fg2 text-sm">
-            Stereo mit {channelNo(partner.id)} {partner.name}
-          </span>
-        )}
-        {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
-        <Btn className="ml-auto h-9 px-4" onClick={() => setEditing(true)}>
+        <Btn className="-ml-1 size-9" aria-label="Bearbeiten" onClick={() => setEditing(true)}>
           <Icon name="edit" />
-          Bearbeiten
         </Btn>
+        {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
+        <div className="-mx-2 flex-1" />
         <Btn
           kind={partner ? 'on' : 'plain'}
-          className={cn('h-9 px-4', fixed && 'hidden')}
+          className={cn('h-9 w-24', fixed && 'hidden')}
+          aria-label={partner ? `Stereo-Link mit Kanal ${partner.id} lösen` : 'Stereo-Link'}
           disabled={!link}
           onClick={() => link && dispatch(link)}
         >
           <Icon name="link" />
-          {partner ? `Stereo-Link mit ${partner.id}` : 'Stereo-Link'}
-        </Btn>
-        <Btn className="h-9 px-4" onClick={() => eq(FLAT)}>
-          Reset
+          {partner ? `CH ${partner.id}` : 'Link'}
         </Btn>
         <Label>EQ</Label>
         <button
@@ -111,6 +104,9 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             )}
           />
         </button>
+        <Btn className="h-9 px-4" onClick={() => eq(FLAT)}>
+          Reset
+        </Btn>
       </header>
 
       <div className="flex min-h-0 flex-1 gap-4">
@@ -146,11 +142,12 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             className="mt-2 h-8"
             aria-pressed={c.recSelect !== 'off'}
             title={REC_SELECT_TITLE[c.recSelect]}
+            aria-label={`Select: ${REC_SELECT_TITLE[c.recSelect]}`}
             onClick={() =>
               dispatch({ type: 'channel', ch, patch: { recSelect: NEXT_REC_SELECT[c.recSelect] } })
             }
           >
-            Select
+            <Icon name="tape" className="size-5" />
           </Btn>
           <ValueBox className="mx-auto mt-2 w-[70px]">{formatDb(c.fader)}</ValueBox>
           <Fader
@@ -185,7 +182,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
               <div key={mix} className="flex min-h-0 flex-1 flex-col py-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
-                  <ValueBox className="text-xs">{formatDb(c.sends[mix].level)}</ValueBox>
+                  <ValueBox className="w-14 text-xs">{formatDb(c.sends[mix].level)}</ValueBox>
                 </div>
                 <Fader
                   db={c.sends[mix].level}
@@ -200,12 +197,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
         </section>
 
         <section className="card flex min-w-0 flex-1 flex-col p-4">
-          <Label className="mb-3">
-            EQ{' '}
-            <span className="text-fg2 ml-3 font-sans text-xs tracking-normal normal-case">
-              3 Bänder und Low Cut
-            </span>
-          </Label>
           <EqGraph eq={c.eq} onChange={eq} />
           <div className="mt-6 grid grid-cols-5 items-start">
             <Knob
@@ -243,14 +234,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
               reset={0.5}
               valueText={signed(c.eq.high)}
             />
-          </div>
-          <div className="border-line text-fg2 mt-auto space-y-1.5 border-t pt-4 text-xs">
-            <p>Punkte in der Kurve ziehen oder Regler drehen. Doppeltippen setzt zurück.</p>
-            {partner && !isFixedStereo(ch) && (
-              <p>
-                Bei Stereo-Link gilt alles auch für Kanal {partner.id}, der Pan wird gespiegelt.
-              </p>
-            )}
           </div>
         </section>
       </div>

@@ -111,6 +111,10 @@ test('meters: channel n is byte 6+n; recorder clock counts h, min, s', () => {
   const digits: number[] = []
   const last = [8, 9, 10, 11].map((m, i) => decodeClock([0xb0 | m, 0x58, [0, 0, 1, 5][i]!], digits))
   expect(last[3]).toEqual({ type: 'recorder', patch: { position: 65 } })
+  const rest = [12, 13, 14, 15].map((m, i) =>
+    decodeClock([0xb0 | m, 0x58, [0, 0, 3, 2][i]!], digits),
+  )
+  expect(rest[3]).toEqual({ type: 'recorder', patch: { remaining: 182 } })
 })
 
 test('parses BLE-MIDI packets, including SysEx split over packets', () => {

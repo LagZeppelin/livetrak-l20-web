@@ -100,3 +100,7 @@ export const SLOT_COUNT = slotOf(CHANNEL_COUNT)
 /** First (left) channel of a slot. */
 export const slotChannel = (slot: number) =>
   slot + FIXED_STEREO.filter((left) => slotOf(left) < slot).length
+
+/** "Nur Select" filter: a channel shows when its Select is on, or its stereo-link partner's is. */
+export const shownBySelect = (channels: Channel[], c: Channel) =>
+  c.recSelect !== 'off' || (!!c.linkedWith && channels[c.linkedWith - 1].recSelect !== 'off')
