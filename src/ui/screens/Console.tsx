@@ -261,7 +261,7 @@ export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
       <button type="button" aria-label="Master-EQ öffnen" onClick={onOpenEq}>
         <MiniGeq geq={main.geq} />
       </button>
-      <div className="mt-auto grid grid-cols-2 gap-1.5">
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
         <Btn
           kind={main.mute ? 'mute' : 'plain'}
           className="h-8"
@@ -285,7 +285,7 @@ export function MasterStrip({ onOpenEq }: { onOpenEq: () => void }) {
         </Btn>
       </div>
       <ValueBox className="mx-auto mt-2 mb-2 w-[70px]">{formatDb(main.fader)}</ValueBox>
-      <div className="flex h-[62%] min-h-0">
+      <div className="flex min-h-0 flex-1">
         <Fader
           db={main.fader}
           onChange={(db) => dispatch({ type: 'bus', mix: 'main', patch: { fader: db } })}
