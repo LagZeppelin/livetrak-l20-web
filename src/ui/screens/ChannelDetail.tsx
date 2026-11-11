@@ -197,12 +197,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
         </section>
 
         <section className="card flex min-w-0 flex-1 flex-col p-4">
-          <Label className="mb-3">
-            EQ{' '}
-            <span className="text-fg2 ml-3 font-sans text-xs tracking-normal normal-case">
-              3 Bänder und Low Cut
-            </span>
-          </Label>
           <EqGraph eq={c.eq} onChange={eq} />
           <div className="mt-6 grid grid-cols-5 items-start">
             <Knob
@@ -240,14 +234,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
               reset={0.5}
               valueText={signed(c.eq.high)}
             />
-          </div>
-          <div className="border-line text-fg2 mt-auto space-y-1.5 border-t pt-4 text-xs">
-            <p>Punkte in der Kurve ziehen oder Regler drehen. Doppeltippen setzt zurück.</p>
-            {partner && !isFixedStereo(ch) && (
-              <p>
-                Bei Stereo-Link gilt alles auch für Kanal {partner.id}, der Pan wird gespiegelt.
-              </p>
-            )}
           </div>
         </section>
       </div>
