@@ -73,21 +73,17 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
         <Btn className="-ml-1 size-9" aria-label="Bearbeiten" onClick={() => setEditing(true)}>
           <Icon name="edit" />
         </Btn>
-        {partner && !fixed && (
-          <span className="text-fg2 text-sm">
-            Stereo mit {channelNo(partner.id)} {partner.name}
-          </span>
-        )}
         {fixed && <span className="text-fg2 text-sm">Stereo-Eingang</span>}
         <div className="-mx-2 flex-1" />
         <Btn
           kind={partner ? 'on' : 'plain'}
           className={cn('h-9 px-4', fixed && 'hidden')}
+          aria-label={partner ? `Stereo-Link mit Kanal ${partner.id} lösen` : undefined}
           disabled={!link}
           onClick={() => link && dispatch(link)}
         >
           <Icon name="link" />
-          {partner ? `Stereo-Link mit ${partner.id}` : 'Stereo-Link'}
+          {partner ? `CH ${partner.id}` : 'Stereo-Link'}
         </Btn>
         <Btn className="h-9 px-4" onClick={() => eq(FLAT)}>
           Reset
