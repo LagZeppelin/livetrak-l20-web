@@ -191,7 +191,7 @@ export function Slider({
         className={cn(
           'bg-thumb absolute -translate-1/2 rounded-full shadow-[0_2px_4px_rgb(0_0_0/0.6)]',
           y ? 'left-1/2' : 'top-1/2',
-          handle === 'lg' ? 'size-7' : 'size-4',
+          handle === 'lg' ? 'size-6' : 'size-4',
         )}
         style={at(pos)}
       />

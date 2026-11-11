@@ -183,6 +183,8 @@ const REC_LABEL: Record<RecorderState, string> = {
   paused: 'PAUSE',
 }
 
+const SHOW_SCENES = false
+
 function TopBar() {
   const scene = useMixerStore((s) => s.mixer.scene)
   const sceneNames = useMixerStore((s) => s.mixer.sceneNames)
@@ -196,42 +198,47 @@ function TopBar() {
   const press = (button: TransportButton) => dispatch({ type: 'transport', button })
 
   return (
-    <header className="border-line flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <label className="border-line relative flex h-9 w-46 items-center rounded border bg-[rgb(22_25_32/0.55)] px-3.5 text-sm font-medium">
-        <span className="truncate">
-          {scene ? `Szene ${scene}` : 'Szene –'}
-          {scene && (
-            <span className="text-fg2 ml-1.5 font-normal">
-              {sceneNames[scene - 1].replace(/^Szene \d+$/, '')}
+    <header className="flex h-16 shrink-0 items-center gap-2 px-4">
+      {/* Szenen-Auswahl auf Rons Wunsch vorerst ausgeblendet (iPad mini zu eng); SHOW_SCENES = true holt sie zurück */}
+      {SHOW_SCENES && (
+        <>
+          <label className="border-line relative flex h-9 w-46 items-center rounded border bg-[rgb(22_25_32/0.55)] px-3.5 text-sm font-medium">
+            <span className="truncate">
+              {scene ? `Szene ${scene}` : 'Szene –'}
+              {scene && (
+                <span className="text-fg2 ml-1.5 font-normal">
+                  {sceneNames[scene - 1].replace(/^Szene \d+$/, '')}
+                </span>
+              )}
             </span>
-          )}
-        </span>
-        <Icon name="caret" className="text-fg2 ml-auto size-4" />
-        <select
-          aria-label="Szene laden"
-          className="absolute inset-0 opacity-0"
-          value={scene ?? ''}
-          onChange={(e) =>
-            dispatch({ type: 'scene', action: 'recall', slot: Number(e.target.value) })
-          }
-        >
-          <option value="" disabled>
-            Szene laden…
-          </option>
-          {sceneNames.map((n, i) => (
-            <option key={i} value={i + 1}>
-              {i + 1} · {n}
-            </option>
-          ))}
-        </select>
-      </label>
-      <Btn
-        className="h-9 px-3"
-        disabled={!scene}
-        onClick={() => scene && dispatch({ type: 'scene', action: 'save', slot: scene })}
-      >
-        Speichern
-      </Btn>
+            <Icon name="caret" className="text-fg2 ml-auto size-4" />
+            <select
+              aria-label="Szene laden"
+              className="absolute inset-0 opacity-0"
+              value={scene ?? ''}
+              onChange={(e) =>
+                dispatch({ type: 'scene', action: 'recall', slot: Number(e.target.value) })
+              }
+            >
+              <option value="" disabled>
+                Szene laden…
+              </option>
+              {sceneNames.map((n, i) => (
+                <option key={i} value={i + 1}>
+                  {i + 1} · {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Btn
+            className="h-9 px-3"
+            disabled={!scene}
+            onClick={() => scene && dispatch({ type: 'scene', action: 'save', slot: scene })}
+          >
+            Speichern
+          </Btn>
+        </>
+      )}
       <Btn className="h-9 px-3" onClick={() => setProfilesOpen(true)}>
         Profile
       </Btn>
@@ -339,7 +346,7 @@ export function Overview({
 
   return (
     <div
-      className="border-line bg-sidebar/85 flex h-17 shrink-0 touch-none items-center border-t px-4"
+      className="border-line bg-sidebar/85 flex h-12 shrink-0 touch-none items-center border-t px-4"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
         drag.current = { x: e.clientX, moved: false }
@@ -364,7 +371,7 @@ export function Overview({
     >
       <div className="relative flex">
         <div
-          className="border-fg/70 bg-fg/5 absolute -inset-y-2 rounded-lg border-[1.5px] transition-[left,width]"
+          className="border-fg/70 bg-fg/5 absolute -inset-y-1 rounded-lg border-[1.5px] transition-[left,width]"
           style={{
             left: (highlight[0] - 1) * STEP - 4,
             width: (highlight[1] - highlight[0]) * STEP + 40,
@@ -378,28 +385,33 @@ export function Overview({
             <div
               key={slot}
               data-ch={slot}
-              className="relative flex w-[33px] flex-col items-center py-1.5"
+              className="relative flex w-[33px] items-center justify-center gap-1 py-1"
             >
               <span
                 className={cn(
                   'font-mono',
-                  stereo ? 'text-[9px] leading-[16.5px]' : 'text-[11px]',
+                  'text-right',
+                  stereo ? 'w-3 text-[9px] leading-[11px]' : 'text-[11px]',
                   on ? 'font-medium' : 'text-fg2',
                 )}
               >
-                {stereo ? `${ch}·${ch + 1}` : ch}
+                {stereo ? (
+                  <>
+                    {ch}
+                    <br />
+                    {ch + 1}
+                  </>
+                ) : (
+                  ch
+                )}
               </span>
-              <div className="mt-1 flex h-6 gap-0.5">
+              <div className="flex h-6 gap-0.5">
                 <Meter level={meters[ch - 1]} />
                 {stereo && <Meter level={meters[ch]} />}
               </div>
             </div>
           )
         })}
-      </div>
-      <div className="ml-auto text-right text-[11px] leading-[18px] whitespace-nowrap">
-        <div className="text-fg2">Tippen: Kanal öffnen</div>
-        <div className="text-fg3">Halten und ziehen: scrollen</div>
       </div>
     </div>
   )
