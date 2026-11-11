@@ -19,6 +19,26 @@ export default function App() {
     // Bluetooth may only start from a click, so the real mixer connects via the status pill
     if (source === 'demo') void connect()
   }, [connect, source])
+  useEffect(() => {
+    // keep the screen awake while the mixer is open; the lock drops when the tab hides, so take it again
+    let lock: WakeLockSentinel | undefined
+    const take = () => {
+      if (document.visibilityState !== 'visible' || (lock && !lock.released)) return
+      navigator.wakeLock
+        ?.request('screen')
+        .then((l) => (lock = l))
+        .catch(() => {}) // unsupported or refused (e.g. low battery): the screen just locks as usual
+    }
+    take()
+    document.addEventListener('visibilitychange', take)
+    // some Safari versions only grant it after a tap
+    document.addEventListener('pointerdown', take)
+    return () => {
+      document.removeEventListener('visibilitychange', take)
+      document.removeEventListener('pointerdown', take)
+      void lock?.release()
+    }
+  }, [])
   if (MONITOR_MIXES.includes(phoneMix)) return <Phone mix={phoneMix} />
   return phoneParam === null ? <Ipad /> : <PhoneEntry />
 }
