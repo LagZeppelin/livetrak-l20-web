@@ -32,12 +32,17 @@ import { AdminDialog, ConnectSnackbar } from './Admin'
 import { DefaultProfilePrompt, ProfilesDialog } from './Profiles'
 
 export function Shell({
+  onlySelected,
+  onOnlySelected,
   screen,
   onScreen,
   overview,
   aside,
   children,
 }: {
+  /** strips filtered to channels whose Select (tape) is on */
+  onlySelected: boolean
+  onOnlySelected: (on: boolean) => void
   screen: Screen
   onScreen: (screen: Screen) => void
   overview: ReactNode
@@ -66,7 +71,7 @@ export function Shell({
         <PhonesButton />
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
+        <TopBar onlySelected={onlySelected} onOnlySelected={onOnlySelected} />
         <main className="min-h-0 flex-1 px-4 pt-0 pb-3">{children}</main>
         {overview}
       </div>
@@ -185,7 +190,13 @@ const REC_LABEL: Record<RecorderState, string> = {
 
 const SHOW_SCENES = false
 
-function TopBar() {
+function TopBar({
+  onlySelected,
+  onOnlySelected,
+}: {
+  onlySelected: boolean
+  onOnlySelected: (on: boolean) => void
+}) {
   const scene = useMixerStore((s) => s.mixer.scene)
   const sceneNames = useMixerStore((s) => s.mixer.sceneNames)
   const recorder = useMixerStore((s) => s.mixer.recorder)
@@ -241,6 +252,16 @@ function TopBar() {
       )}
       <Btn className="h-9 px-3" onClick={() => setProfilesOpen(true)}>
         Profile
+      </Btn>
+      <Btn
+        kind={onlySelected ? 'on' : 'plain'}
+        className="size-9"
+        aria-label="Nur Kanäle mit Select (Tape) zeigen"
+        aria-pressed={onlySelected}
+        title="Nur Kanäle mit Select (Tape) zeigen"
+        onClick={() => onOnlySelected(!onlySelected)}
+      >
+        <Icon name="tape" className="size-5" />
       </Btn>
       {profilesOpen && <ProfilesDialog onClose={() => setProfilesOpen(false)} />}
       <DefaultProfilePrompt />

@@ -27,13 +27,21 @@ export function Console({
   mix,
   onOpen,
   onVisible,
+  onlySelected,
 }: {
   mix: View
+  /** hide strips whose Select is off; a stereo pair stays when either side is on */
+  onlySelected?: boolean
   onOpen: (ch: number) => void
   /** first and last strip slot on screen (see slotOf) */
   onVisible: (range: [number, number]) => void
 }) {
   const channels = useMixerStore((s) => s.mixer.channels)
+  const shown = (c: Channel) =>
+    !onlySelected ||
+    c.recSelect !== 'off' ||
+    (!!c.linkedWith && channels[c.linkedWith - 1].recSelect !== 'off')
+  const none = onlySelected && !channels.some(shown)
   return (
     <div className="flex h-full gap-2">
       <div
@@ -46,7 +54,8 @@ export function Console({
           onVisible([first, Math.round((el.scrollLeft + el.clientWidth) / STRIP_W)])
         }}
       >
-        {channels.map((c) =>
+        {none && <p className="text-fg2 m-auto text-sm">Bei keinem Kanal ist Select (Tape) an.</p>}
+        {channels.filter(shown).map((c) =>
           // a stereo pair shares one card, split by a divider (same width as two strips + gap)
           c.linkedWith && c.linkedWith < c.id ? null : c.linkedWith && !isFixedStereo(c.id) ? (
             <div

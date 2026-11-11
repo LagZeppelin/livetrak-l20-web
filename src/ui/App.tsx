@@ -27,12 +27,15 @@ function Ipad() {
   const [mix, setMix] = useState<View>('main')
   const [detail, setDetail] = useState<number | 'master' | null>(null)
   const [visible, setVisible] = useState<[number, number]>([1, 8])
+  const [onlySelected, setOnlySelected] = useState(false)
 
   const scrollTo = (ch: number) =>
     document.getElementById(`strip-${ch}`)?.scrollIntoView({ inline: 'start', block: 'nearest' })
 
   return (
     <Shell
+      onlySelected={onlySelected}
+      onOnlySelected={setOnlySelected}
       screen={detail === 'master' ? 'master' : mix}
       onScreen={(s) => {
         if (s === 'master') return setDetail('master')
@@ -68,7 +71,7 @@ function Ipad() {
           }}
         />
       ) : (
-        <Console mix={mix} onOpen={setDetail} onVisible={setVisible} />
+        <Console mix={mix} onOpen={setDetail} onVisible={setVisible} onlySelected={onlySelected} />
       )}
     </Shell>
   )
