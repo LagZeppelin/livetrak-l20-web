@@ -77,13 +77,13 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
         <div className="-mx-2 flex-1" />
         <Btn
           kind={partner ? 'on' : 'plain'}
-          className={cn('h-9 px-4', fixed && 'hidden')}
-          aria-label={partner ? `Stereo-Link mit Kanal ${partner.id} lösen` : undefined}
+          className={cn('h-9 w-24', fixed && 'hidden')}
+          aria-label={partner ? `Stereo-Link mit Kanal ${partner.id} lösen` : 'Stereo-Link'}
           disabled={!link}
           onClick={() => link && dispatch(link)}
         >
           <Icon name="link" />
-          {partner ? `CH ${partner.id}` : 'Stereo-Link'}
+          {partner ? `CH ${partner.id}` : 'Link'}
         </Btn>
         <Label>EQ</Label>
         <button
@@ -182,7 +182,7 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
               <div key={mix} className="flex min-h-0 flex-1 flex-col py-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold">{mix === 'fx1' ? 'FX 1' : 'FX 2'}</span>
-                  <ValueBox className="text-xs">{formatDb(c.sends[mix].level)}</ValueBox>
+                  <ValueBox className="w-14 text-xs">{formatDb(c.sends[mix].level)}</ValueBox>
                 </div>
                 <Fader
                   db={c.sends[mix].level}
