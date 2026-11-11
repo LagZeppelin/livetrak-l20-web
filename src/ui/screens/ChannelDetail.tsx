@@ -85,9 +85,6 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
           <Icon name="link" />
           {partner ? `CH ${partner.id}` : 'Stereo-Link'}
         </Btn>
-        <Btn className="h-9 px-4" onClick={() => eq(FLAT)}>
-          Reset
-        </Btn>
         <Label>EQ</Label>
         <button
           type="button"
@@ -107,6 +104,9 @@ export function ChannelDetail({ ch, onBack }: { ch: number; onBack: () => void }
             )}
           />
         </button>
+        <Btn className="h-9 px-4" onClick={() => eq(FLAT)}>
+          Reset
+        </Btn>
       </header>
 
       <div className="flex min-h-0 flex-1 gap-4">
