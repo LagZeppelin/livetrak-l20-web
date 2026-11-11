@@ -150,6 +150,8 @@ export interface Recorder {
   state: RecorderState
   /** Seconds. */
   position: number
+  /** Seconds left (L-20 "Restzeit" counter, meaning unconfirmed); feeds the progress bar. */
+  remaining?: number
 }
 
 export interface Mixer {

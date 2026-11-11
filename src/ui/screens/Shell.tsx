@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   MONITOR_MIXES,
@@ -200,6 +200,18 @@ function TopBar({
   const rec = recorder.state === 'recording'
   const [profilesOpen, setProfilesOpen] = useState(false)
   const press = (button: TransportButton) => dispatch({ type: 'transport', button })
+  const { position, remaining } = recorder
+  const progress = remaining === undefined ? 0 : position / Math.max(1, position + remaining)
+  // the recorder menu closes as soon as anything outside it is touched
+  const recMenu = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const close = (e: PointerEvent) => {
+      const menu = recMenu.current
+      if (menu?.open && !menu.contains(e.target as Node)) menu.open = false
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [])
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 px-4">
@@ -259,7 +271,7 @@ function TopBar({
       {profilesOpen && <ProfilesDialog onClose={() => setProfilesOpen(false)} />}
       <DefaultProfilePrompt />
 
-      <details className="relative mx-auto">
+      <details ref={recMenu} className="relative mx-auto">
         <summary
           className={cn(
             'flex h-9 w-50 cursor-pointer list-none items-center gap-2 rounded-full border px-3.5',
@@ -277,31 +289,54 @@ function TopBar({
           </span>
           <Icon name="caret" className="text-fg2 size-4" />
         </summary>
-        <div className="bg-surf absolute top-11 left-1/2 z-20 grid w-56 -translate-x-1/2 grid-cols-2 gap-2 rounded-lg border border-white/12 p-2 shadow-[0_24px_64px_rgb(0_0_0/0.7)]">
-          <Btn
-            kind={['standby', 'recording', 'recPaused'].includes(recorder.state) ? 'rec' : 'plain'}
-            className={cn('h-11', recorder.state === 'recPaused' && 'animate-pulse')}
-            onClick={() => press('rec')}
-          >
-            ● Rec
+        <div className="bg-surf absolute top-11 left-1/2 z-20 grid w-64 -translate-x-1/2 grid-cols-6 gap-2 rounded-lg border border-white/12 p-3 shadow-[0_24px_64px_rgb(0_0_0/0.7)]">
+          <div className="col-span-6 mb-1">
+            <div
+              role="progressbar"
+              aria-label="Fortschritt der Aufnahme"
+              aria-valuenow={Math.round(progress * 100)}
+              className="h-3 overflow-hidden rounded-full bg-white/12"
+            >
+              <div
+                className={cn('h-full rounded-full', rec ? 'bg-bad' : 'bg-fg')}
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+            <div className="text-fg2 mt-1 flex justify-between font-mono text-[11px]">
+              <span>{formatTime(recorder.position)}</span>
+              {recorder.remaining !== undefined && <span>−{formatTime(recorder.remaining)}</span>}
+            </div>
+          </div>
+          <Btn className="col-span-2 h-11" aria-label="Stop" onClick={() => press('stop')}>
+            ■
           </Btn>
           <Btn
             kind={recorder.state === 'playing' ? 'on' : 'plain'}
-            className={cn('h-11', recorder.state === 'paused' && 'animate-pulse')}
+            className={cn('col-span-2 h-11', recorder.state === 'paused' && 'animate-pulse')}
+            aria-label="Play / Pause"
             onClick={() => press('play')}
           >
-            ▶ ❚❚ Play
+            ▶ ❚❚
           </Btn>
-          <Btn className="col-span-2 h-11" onClick={() => press('stop')}>
-            ■ Stop
+          <Btn
+            kind={['standby', 'recording', 'recPaused'].includes(recorder.state) ? 'rec' : 'plain'}
+            className={cn('col-span-2 h-11', recorder.state === 'recPaused' && 'animate-pulse')}
+            aria-label="Record"
+            onClick={() => press('rec')}
+          >
+            ●
           </Btn>
-          <Btn className="h-11" aria-label="1 Minute zurück" onClick={() => press('rew')}>
+          <Btn
+            className="col-span-3 h-11"
+            aria-label="1 Minute zurück"
+            onClick={() => press('rew')}
+          >
             ◀◀ 1 min
           </Btn>
-          <Btn className="h-11" aria-label="1 Minute vor" onClick={() => press('ff')}>
+          <Btn className="col-span-3 h-11" aria-label="1 Minute vor" onClick={() => press('ff')}>
             1 min ▶▶
           </Btn>
-          <p className="text-fg2 col-span-2 px-1 text-xs">
+          <p className="text-fg2 col-span-6 px-1 text-xs">
             {recorder.state === 'standby'
               ? 'Aufnahme bereit: Play startet, Rec bricht ab.'
               : recorder.state === 'recPaused'
