@@ -67,7 +67,7 @@ export function Shell({
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="min-h-0 flex-1 p-4 pb-3">{children}</main>
+        <main className="min-h-0 flex-1 px-4 pt-0 pb-3">{children}</main>
         {overview}
       </div>
       <aside className="border-line bg-sidebar/85 flex shrink-0 flex-col border-l py-3">
