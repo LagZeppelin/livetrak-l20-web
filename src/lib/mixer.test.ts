@@ -45,7 +45,7 @@ test('send pre/post and bus patches', () => {
   expect(m.channels[3].sends.C).toEqual({ level: -5 })
   expect(m.main).not.toHaveProperty('effect')
   expect(m.main.fader).toBe(-3)
-  expect(m.fx.fx2).toMatchObject({ effect: 9, params: [100, 0] })
+  expect(m.fx.fx2).toMatchObject({ effect: 9, params: [120, 0] })
 })
 
 test('names and low cut stay within the hardware limits', () => {

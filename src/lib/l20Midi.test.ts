@@ -5,12 +5,15 @@ import {
   blePacket,
   decode,
   decodeClock,
+  decodeKnob,
   decodeMeters,
   decodeState,
   encode,
 } from './l20Midi'
 // State reply from Ron's 2nd capture, taken after presetting known values in the official app (docs/protocol-l20-ble.md)
 import stateHex from './__fixtures__/l20-state.hex?raw'
+// State reply from capture 4 (2026-11-14): FX returns at 0 dB, Mix A/B/F outputs up, FX1 Vocal 1, FX2 Chorus 1
+import state4Hex from './__fixtures__/l20-state-4.hex?raw'
 
 const hex = (h: string) =>
   h
@@ -84,7 +87,9 @@ test('uses the dB and frequency points read off the app in capture 3', () => {
   const fader = (db: number) => encode({ type: 'channel', ch: 1, patch: { fader: db } })[0]![2]
   expect([-60, -40, -20, -10, 0, 10].map(fader)).toEqual([0, 8, 27, 45, 82, 120])
   const mid = (hz: number) => encode({ type: 'eq', ch: 1, patch: { midFreq: hz } })[0]![2]
-  expect([100, 1017, 8000].map(mid)).toEqual([0, 53, 96])
+  expect([100, 200, 497, 1017, 3065, 8000].map(mid)).toEqual([0, 16, 37, 53, 76, 96])
+  const lowCut = (hz: number) => encode({ type: 'eq', ch: 1, patch: { lowCutHz: hz } })[0]![2]
+  expect([40, 60, 204.9, 403.9, 600].map(lowCut)).toEqual([1, 11, 37, 49, 56])
   expect(decode([0xb0, 0x2e, 24])).toMatchObject({ patch: { lowCutHz: 101 } })
   expect(encode({ type: 'send', ch: 1, mix: 'fx1', patch: { level: 10 } })).toEqual([
     [0xb0, 0x34, 60],
@@ -100,21 +105,57 @@ test('uses the dB and frequency points read off the app in capture 3', () => {
     expect(decode(encode(cmd)[0]!)).toEqual(cmd)
 })
 
-test('meters: channel n is byte 6+n; recorder clock counts h, min, s', () => {
+test('meters: test-tone calibration from capture 4; recorder clocks', () => {
+  // ch 1 clipping (0x2a), ch 2 at -3 dB, ch 20 at -45 dB; main L at -9 dB
   const m = decodeMeters(
-    hex('f05200003104001f' + '00'.repeat(17) + '1011' + '00'.repeat(31) + 'f7'),
+    hex('f0520000310400' + '2a19' + '00'.repeat(17) + '10' + '00'.repeat(28) + '07' + '00f7'),
   )!
-  expect(m[0]).toBe(0)
-  expect(m[1]).toBe(-60)
-  expect(m[18]).toBe(-48)
-  expect(m[19]).toBeCloseTo(-44.8)
+  expect(m.slice(0, 3)).toEqual([0, -3, -60])
+  expect(m[19]).toBe(-45)
+  expect(m[20]).toBe(-9)
+  expect(m[21]).toBe(-60)
   const digits: number[] = []
-  const last = [8, 9, 10, 11].map((m, i) => decodeClock([0xb0 | m, 0x58, [0, 0, 1, 5][i]!], digits))
-  expect(last[3]).toEqual({ type: 'recorder', patch: { position: 65 } })
-  const rest = [12, 13, 14, 15].map((m, i) =>
-    decodeClock([0xb0 | m, 0x58, [0, 0, 3, 2][i]!], digits),
-  )
-  expect(rest[3]).toEqual({ type: 'recorder', patch: { remaining: 182 } })
+  const clock = (first: number, values: number[]) =>
+    values.map((v, i) => decodeClock([0xb0 | (first + i), 0x58, v], digits)).at(-1)
+  expect(clock(8, [0, 0, 1, 5])).toEqual({ type: 'recorder', patch: { position: 65 } })
+  // L-20 display 299:23:14 left on the SD card
+  expect(clock(12, [2, 43, 23, 14])).toEqual({
+    type: 'recorder',
+    patch: { remaining: (299 * 60 + 23) * 60 + 14 },
+  })
+  expect(clock(4, [0, 0, 2, 16])).toEqual({ type: 'recorder', patch: { length: 136 } })
+})
+
+test('capture 4: per-mix FX returns, effect knobs, state block', () => {
+  expect(encode({ type: 'bus', mix: 'B', patch: { fx2: 10 } })).toEqual([[0xb5, 0x51, 120]])
+  expect(encode({ type: 'bus', mix: 'F', patch: { fx1: 0 } })).toEqual([[0xb4, 0x52, 82]])
+  expect(decode([0xbd, 0x51, 120])).toEqual({ type: 'bus', mix: 'D', patch: { fx2: 10 } })
+  expect(decode([0xb1, 0x52, 0])).toEqual({ type: 'bus', mix: 'E', patch: { fx2: -60 } })
+  expect(decode([0xb2, 0x51, 0])).toBeNull()
+  // Delay time 1000 ms = raw 999 = MSB 7, LSB 0x67
+  expect(encode({ type: 'fxParam', mix: 'fx2', index: 0, value: 999 })).toEqual([
+    [0xb6, 0x4e, 7],
+    [0xb7, 0x4e, 0x67],
+  ])
+  const msb: number[] = []
+  expect(decodeKnob([0xbc, 0x4e, 0], msb)).toBeNull()
+  expect(decodeKnob([0xbd, 0x4e, 49], msb)).toEqual({
+    type: 'fxParam',
+    mix: 'fx1',
+    index: 1,
+    value: 49,
+  })
+  const cmds = decodeState(hex(state4Hex))
+  const bus = (mix: string) =>
+    Object.assign(
+      {},
+      ...cmds.map((c) => (c.type === 'bus' && c.mix === mix ? c.patch : {})),
+    ) as Record<string, number>
+  expect(bus('fx1')).toMatchObject({ effect: 7, fader: 0, params: [499, 50] })
+  expect(bus('fx2')).toMatchObject({ effect: 7, params: [50, 49] })
+  expect(bus('A').fader).toBeCloseTo(6.6, 0)
+  expect(bus('C')).toMatchObject({ fader: -60, fx1: -60, fx2: -60 })
+  expect(bus('F').fader).toBeCloseTo(-0.4, 0)
 })
 
 test('parses BLE-MIDI packets, including SysEx split over packets', () => {

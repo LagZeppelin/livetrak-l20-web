@@ -100,8 +100,17 @@ export interface Bus {
 export interface FxBus extends Bus {
   /** Index into the L-20 effect list (dropdown). */
   effect: number
-  /** The effect's two parameter knobs (names in EFFECTS), 0–100 each. */
+  /**
+   * The effect's two knobs (names in EFFECTS) as the L-20 sends them (capture 4): Tone, Decay, Feedback 0–100,
+   * Rate 1–49, Time in ms − 1 (9…499 for Vocal, 9…999 for Delay).
+   */
   params: [number, number]
+}
+
+/** Mix A–F output; `fx1`/`fx2` are the effect returns into this mix (each mix has its own). */
+export interface MonitorBus extends Bus {
+  fx1: number
+  fx2: number
 }
 
 export type RecSelect = 'off' | 'rec' | 'play'
@@ -150,14 +159,16 @@ export interface Recorder {
   state: RecorderState
   /** Seconds. */
   position: number
-  /** Seconds left (L-20 "Restzeit" counter, meaning unconfirmed); feeds the progress bar. */
+  /** Length of the current take in seconds, as the L-20 reports it after a recording; feeds the progress bar. */
+  length?: number
+  /** Recording time left on the SD card in seconds (L-20 "Restzeit"). */
   remaining?: number
 }
 
 export interface Mixer {
   channels: Channel[]
   main: Bus & { geq: number[] }
-  monitors: Record<MonitorMixId, Bus>
+  monitors: Record<MonitorMixId, MonitorBus>
   fx: Record<FxMixId, FxBus>
   /** Last recalled/saved scene slot (1–9) or null. */
   scene: number | null
@@ -176,7 +187,9 @@ export type MixerCommand =
   | { type: 'send'; ch: number; mix: SendMixId; patch: Partial<Send> }
   /** Links ch with ch+1 (linked=true) or dissolves whatever link ch is in. */
   | { type: 'link'; ch: number; linked: boolean }
-  | { type: 'bus'; mix: MixId; patch: Partial<FxBus> }
+  | { type: 'bus'; mix: MixId; patch: Partial<FxBus & MonitorBus> }
+  /** One effect knob (index 0/1), raw L-20 value, see FxBus.params. */
+  | { type: 'fxParam'; mix: FxMixId; index: 0 | 1; value: number }
   | { type: 'geq'; band: number; gain: number }
   | { type: 'scene'; action: 'save' | 'recall'; slot: number; name?: string }
   /** A press on REC, PLAY/PAUSE or STOP; the reducer works out the new state like the L-20 does. */
@@ -186,6 +199,8 @@ export type MixerCommand =
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
 const fader = (v: number) => clamp(v, FADER_MIN, FADER_MAX)
 const gain = (v: number) => clamp(v, -EQ_GAIN_MAX, EQ_GAIN_MAX)
+/** Effect knob raw value; the widest range seen is Delay time 9…999. */
+const param = (v: number) => clamp(Math.round(v), 0, 999)
 
 export function createMixer(): Mixer {
   const sends = () =>
@@ -214,7 +229,9 @@ export function createMixer(): Mixer {
   return {
     channels,
     main: { ...bus(), geq: GEQ_BANDS.map(() => 0) },
-    monitors: Object.fromEntries(MONITOR_MIXES.map((m) => [m, bus()])) as Record<MonitorMixId, Bus>,
+    monitors: Object.fromEntries(
+      MONITOR_MIXES.map((m) => [m, { ...bus(), fx1: FADER_MIN, fx2: FADER_MIN }]),
+    ) as Record<MonitorMixId, MonitorBus>,
     fx: {
       fx1: { ...bus(), effect: 0, params: [50, 50] },
       fx2: { ...bus(), effect: 0, params: [50, 50] },
@@ -297,8 +314,7 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
     case 'bus': {
       const p = { ...cmd.patch }
       if (p.fader !== undefined) p.fader = fader(p.fader)
-      if (p.params !== undefined)
-        p.params = p.params.map((v) => clamp(v, 0, 100)) as [number, number]
+      if (p.params !== undefined) p.params = p.params.map(param) as [number, number]
       if (p.effect !== undefined) p.effect = clamp(Math.round(p.effect), 0, EFFECTS.fx1.length - 1)
       if (cmd.mix === 'main') {
         const { fader: f, mute } = p
@@ -307,14 +323,25 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
       if (cmd.mix === 'fx1' || cmd.mix === 'fx2')
         return { ...mixer, fx: { ...mixer.fx, [cmd.mix]: { ...mixer.fx[cmd.mix], ...p } } }
       if (!(cmd.mix in mixer.monitors)) return mixer
-      const { fader: f, mute } = p
+      const { fader: f, mute, fx1, fx2 } = p
+      const ret = (v?: number) => (v === undefined ? v : fader(v))
       return {
         ...mixer,
         monitors: {
           ...mixer.monitors,
-          [cmd.mix]: { ...mixer.monitors[cmd.mix], ...strip({ fader: f, mute }) },
+          [cmd.mix]: {
+            ...mixer.monitors[cmd.mix],
+            ...strip({ fader: f, mute, fx1: ret(fx1), fx2: ret(fx2) }),
+          },
         },
       }
+    }
+    case 'fxParam': {
+      const bus = mixer.fx[cmd.mix]
+      if (!bus || (cmd.index !== 0 && cmd.index !== 1)) return mixer
+      const params: [number, number] = [...bus.params]
+      params[cmd.index] = param(cmd.value)
+      return { ...mixer, fx: { ...mixer.fx, [cmd.mix]: { ...bus, params } } }
     }
     case 'geq': {
       if (!(cmd.band in mixer.main.geq)) return mixer
@@ -333,6 +360,7 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
       return {
         ...mixer,
         recorder: {
+          ...mixer.recorder,
           state: pressTransport(mixer.recorder.state, cmd.button),
           position: Math.max(
             0,

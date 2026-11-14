@@ -41,7 +41,11 @@ export function profileCommands(current: Mixer, target: Mixer): MixerCommand[] {
   }
   out.push({ type: 'bus', mix: 'main', patch: pick(target.main, ['fader', 'mute']) })
   for (const mix of MONITOR_MIXES)
-    out.push({ type: 'bus', mix, patch: pick(target.monitors[mix], ['fader', 'mute']) })
+    out.push({
+      type: 'bus',
+      mix,
+      patch: pick(target.monitors[mix], ['fader', 'mute', 'fx1', 'fx2']),
+    })
   for (const mix of FX_MIXES)
     out.push({
       type: 'bus',

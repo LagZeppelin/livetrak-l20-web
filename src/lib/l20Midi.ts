@@ -73,20 +73,26 @@ const FXSEND = curve([
 ])
 /** EQ and GEQ gains: 0…60, 30 = 0 dB, 0.5 dB steps (both ends captured as ±15 dB). */
 const GAIN = { to: (db: number) => clamp(db * 2 + 30, 0, 60), from: (v: number) => (v - 30) / 2 }
-/** Low cut pot: 0 = off, 1…56 = 40…600 Hz, 24 = 101.4 Hz. */
+/** Low cut pot: 0 = off, 1…56 = 40…600 Hz; points in between from captures 3 and 4. */
 const LOWCUT = curve(
   [
     [1, LOW_CUT_MIN_HZ],
+    [11, 60],
     [24, 101.4],
+    [37, 204.9],
+    [49, 403.9],
     [56, LOW_CUT_MAX_HZ],
   ],
   true,
 )
-/** Mid frequency: 0…96 = 100 Hz…8 kHz, 53 = 1017 Hz. */
+/** Mid frequency: 0…96 = 100 Hz…8 kHz; points in between from captures 3 and 4. */
 const MIDFREQ = curve(
   [
     [0, 100],
+    [16, 200],
+    [37, 497],
     [53, 1017],
+    [76, 3065],
     [96, 8000],
   ],
   true,
@@ -129,6 +135,17 @@ const BUS: Partial<Record<MixId, [number, number]>> = {
   fx2: [0x0d, 0x50],
   ...Object.fromEntries(MONITOR_MIXES.map((m, i) => [m, [i, 0x53]])),
 }
+
+/**
+ * FX return into Mix A–F: 12 slots of four (FX 1, FX 2, two unused) running over CC 0x51 and 0x52 (capture 4):
+ * A = B0/B1 51, B = B4/B5 51, C = B8/B9 51, D = BC/BD 51, E = B0/B1 52, F = B4/B5 52.
+ */
+const mixFxAddr = (mix: number, fx: number) => {
+  const i = mix * 4 + fx
+  return { m: i & 15, n: 0x51 + (i >> 4) }
+}
+/** Effect knobs on CC 0x4E as MSB/LSB pairs: [MSB channel] per FX bus and knob (LSB is the next channel). */
+const KNOB = { fx1: [0x04, 0x0c], fx2: [0x06, 0x0e] } as const
 
 /** Channel REC/PLAY button on CC 0x08. */
 const SELECT: Record<RecSelect, number> = { off: 0, rec: 2, play: 1 }
@@ -189,6 +206,23 @@ export function encode(cmd: MixerCommand): Msg[] {
       out.push(cc(bus[0], bus[1], FADER.to(cmd.patch.fader)))
     if (cmd.mix === 'main' && cmd.patch.mute !== undefined)
       out.push(cc(0x09, 0x54, +cmd.patch.mute))
+    const mix = MONITOR_MIXES.indexOf(cmd.mix as never)
+    FX_MIXES.forEach((fx, f) => {
+      const level = cmd.patch[fx]
+      if (mix < 0 || level === undefined) return
+      const a = mixFxAddr(mix, f)
+      out.push(cc(a.m, a.n, FADER.to(level)))
+    })
+    if (fxIndex >= 0)
+      cmd.patch.params?.forEach((value, index) =>
+        out.push(
+          ...encode({ type: 'fxParam', mix: FX_MIXES[fxIndex]!, index: index as 0 | 1, value }),
+        ),
+      )
+  } else if (cmd.type === 'fxParam') {
+    const m = KNOB[cmd.mix][cmd.index]
+    const v = clamp(cmd.value, 0, 0x3fff)
+    out.push(cc(m, 0x4e, v >> 7), cc(m + 1, 0x4e, v & 0x7f))
   } else if (cmd.type === 'geq') {
     out.push(cc(cmd.band, 0x55, GAIN.to(cmd.gain)))
   } else if (cmd.type === 'transport') {
@@ -206,6 +240,12 @@ export function decode(msg: Msg): MixerCommand | null {
   if (n === 0x4e && m < 2) return { type: 'bus', mix: FX_MIXES[m]!, patch: { effect: v } }
   if (n === 0x54 && m === 0x09) return { type: 'bus', mix: 'main', patch: { mute: v > 0 } }
   if (n === 0x55 && m < 15) return { type: 'geq', band: m, gain: GAIN.from(v) }
+  if (n === 0x51 || n === 0x52) {
+    const i = (n - 0x51) * 16 + m
+    const mix = MONITOR_MIXES[i >> 2]
+    const fx = FX_MIXES[i & 3]
+    return mix && fx ? { type: 'bus', mix, patch: { [fx]: FADER.from(v) } } : null
+  }
   if (n === 0x57 && m === 0x08 && v in REC_STATE)
     return { type: 'recorder', patch: { state: REC_STATE[v] } }
   for (const [mix, [bm, bn]] of Object.entries(BUS))
@@ -256,18 +296,34 @@ export function decode(msg: Msg): MixerCommand | null {
   return mix ? send(mix, FADER.from(v)) : null
 }
 
+const CLOCK = { 0x07: 'length', 0x0b: 'position', 0x0f: 'remaining' } as const
 /**
- * Recorder counters on CC 58: B8–BB = position, BC–BF = remaining time (❓), each (?, hours, minutes, seconds).
+ * Recorder counters on CC 58, four channels each (hours MSB, hours LSB, minutes, seconds; capture 4):
+ * B4–B7 = length of the take, B8–BB = position, BC–BF = recording time left on the SD card.
  * `digits` keeps the last values; a counter is reported when its seconds byte arrives.
  */
 export function decodeClock(msg: Msg, digits: number[]): MixerCommand | null {
   const m = msg[0]! & 0x0f
-  if ((msg[0]! & 0xf0) !== 0xb0 || msg[1] !== 0x58 || m < 0x08) return null
-  digits[m - 8] = msg[2]!
-  if (m !== 0x0b && m !== 0x0f) return null
-  const [, h = 0, min = 0, s = 0] = digits.slice(m - 11)
-  const secs = (h * 60 + min) * 60 + s
-  return { type: 'recorder', patch: m === 0x0b ? { position: secs } : { remaining: secs } }
+  if ((msg[0]! & 0xf0) !== 0xb0 || msg[1] !== 0x58 || m < 0x04) return null
+  digits[m] = msg[2]!
+  if (!(m in CLOCK)) return null
+  const [hHi = 0, hLo = 0, min = 0, s = 0] = digits.slice(m - 3, m + 1)
+  const secs = ((hHi * 128 + hLo) * 60 + min) * 60 + s
+  return { type: 'recorder', patch: { [CLOCK[m as keyof typeof CLOCK]]: secs } }
+}
+
+/** Effect knob from its MSB/LSB pair on CC 0x4E; `msb` keeps the last MSB per MIDI channel. */
+export function decodeKnob(msg: Msg, msb: number[]): MixerCommand | null {
+  const m = msg[0]! & 0x0f
+  if ((msg[0]! & 0xf0) !== 0xb0 || msg[1] !== 0x4e) return null
+  for (const mix of FX_MIXES)
+    for (const index of [0, 1] as const) {
+      const hi = KNOB[mix][index]
+      if (m === hi) msb[m] = msg[2]!
+      if (m === hi + 1)
+        return { type: 'fxParam', mix, index, value: (msb[hi] ?? 0) * 128 + msg[2]! }
+    }
+  return null
 }
 
 /** Offsets of 18-byte arrays (one byte per strip: 1–16, 17/18, 19/20) in the state block after the names. */
@@ -287,10 +343,11 @@ const STATE = {
   fader: 252,
   sends: 270, // Mix A–F, 18 bytes each
   fxType: 378, // FX 1, FX 2
-  // 380…387: effect knobs as MSB/LSB pairs (FX1 p1, FX2 p1, FX1 p2, FX2 p2), raw units per effect, not mapped yet
-  monitors: 392, // Mix A–F outputs
+  knobs: 380, // MSB/LSB pairs: FX1 knob 1, FX2 knob 1, FX1 knob 2, FX2 knob 2
+  fxReturn: 392, // FX 1, FX 2 into the main mix
+  mixFx: 394, // FX 1, FX 2 into Mix A, then B … F (❓ order, all zero so far)
   main: 408,
-  fxReturn: 409, // FX 1, FX 2
+  monitors: 409, // Mix A–F outputs
   geq: 416, // 15 bands
 }
 
@@ -339,12 +396,27 @@ export function decodeState(msg: Msg): MixerCommand[] {
     out.push({
       type: 'bus',
       mix,
-      patch: { effect: at(STATE.fxType + i), fader: FADER.from(at(STATE.fxReturn + i)) },
+      patch: {
+        effect: at(STATE.fxType + i),
+        fader: FADER.from(at(STATE.fxReturn + i)),
+        params: [0, 1].map((k) => {
+          const o = STATE.knobs + (k * 2 + i) * 2
+          return at(o) * 128 + at(o + 1)
+        }) as [number, number],
+      },
     }),
   )
   out.push({ type: 'bus', mix: 'main', patch: { fader: FADER.from(at(STATE.main)) } })
   MONITOR_MIXES.forEach((mix, i) =>
-    out.push({ type: 'bus', mix, patch: { fader: FADER.from(at(STATE.monitors + i)) } }),
+    out.push({
+      type: 'bus',
+      mix,
+      patch: {
+        fader: FADER.from(at(STATE.monitors + i)),
+        fx1: FADER.from(at(STATE.mixFx + i * 2)),
+        fx2: FADER.from(at(STATE.mixFx + i * 2 + 1)),
+      },
+    }),
   )
   for (let b = 0; b < 15; b++)
     out.push({ type: 'geq', band: b, gain: GAIN.from(at(STATE.geq + b)) })
@@ -352,16 +424,30 @@ export function decodeState(msg: Msg): MixerCommand[] {
 }
 
 /**
- * Meter levels from F0 52 00 00 31 04 …: byte 6+n is channel n (1–20). Main and FX meters are not mapped yet.
- * Values seen are 0 (silent) or 16…25, never 2…15: read as bit 4 = signal, low 4 bits = level step 0…15.
- * shortcut: steps spread evenly over −48…0 dBFS (15 = top/clip); calibrate against the L-20's LEDs with a test tone
+ * One meter byte in dBFS, calibrated with the 1 kHz test tone in 3 dB steps (capture 4): low 4 bits = step,
+ * 10 = 0 dBFS, each step below = −3 dB down to 2 = −24; 1 covers −27…−42, 0 ≈ −45. Channel bytes also set
+ * bit 4 (signal) and bit 5 (clip); without bit 4 a channel is silent.
+ */
+const meterDb = (v: number) => {
+  const step = v & 0x0f
+  return step >= 2 ? step * 3 - 30 : step === 1 ? -33 : -45
+}
+
+/**
+ * Meter levels from F0 52 00 00 31 04 …: byte 6 = the app's view (B5 57), byte 6+n = channel n (1–20),
+ * bytes 55/56 = main L/R after the master fader (capture 4; R ❓, the test tone was panned hard left).
+ * FX meters are not found yet.
  */
 export function decodeMeters(msg: Msg): number[] | null {
-  if (msg[4] !== 0x31 || msg.length < 27) return null
+  if (msg[4] !== 0x31 || msg.length < 58) return null
   const levels = Array.from({ length: 26 }, () => FADER_MIN)
   for (let ch = 1; ch <= 20; ch++) {
     const v = msg[6 + ch]!
-    levels[ch - 1] = v & 0x10 ? -48 + ((v & 0x0f) * 48) / 15 : FADER_MIN
+    levels[ch - 1] = v & 0x30 ? meterDb(v) : FADER_MIN
+  }
+  for (const side of [0, 1]) {
+    const v = msg[55 + side]!
+    levels[20 + side] = v ? meterDb(v) : FADER_MIN
   }
   return levels
 }

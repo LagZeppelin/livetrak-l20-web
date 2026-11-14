@@ -7,6 +7,7 @@ import {
   blePacket,
   decode,
   decodeClock,
+  decodeKnob,
   decodeMeters,
   decodeState,
   encode,
@@ -53,6 +54,7 @@ export class BleMidiTransport implements IMixerTransport {
   private listeners = new Set<(e: MixerEvent) => void>()
   private parser = new BleMidiParser()
   private clock: number[] = []
+  private knobs: number[] = []
   /** Latest unsent message per control, so a fast drag only sends where the fader is now. */
   private pending = new Map<string, number[]>()
   private writing = false
@@ -149,7 +151,7 @@ export class BleMidiTransport implements IMixerTransport {
           ? decodeState(msg)
           : echo
             ? []
-            : [decode(msg) ?? decodeClock(msg, this.clock)]
+            : [decode(msg) ?? decodeClock(msg, this.clock) ?? decodeKnob(msg, this.knobs)]
       for (const cmd of cmds) if (cmd) this.emit(cmd)
     }
   }
