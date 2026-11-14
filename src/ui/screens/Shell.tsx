@@ -200,8 +200,8 @@ function TopBar({
   const rec = recorder.state === 'recording'
   const [profilesOpen, setProfilesOpen] = useState(false)
   const press = (button: TransportButton) => dispatch({ type: 'transport', button })
-  const { position, remaining } = recorder
-  const progress = remaining === undefined ? 0 : position / Math.max(1, position + remaining)
+  const { position, length } = recorder
+  const progress = length ? Math.min(1, position / length) : 0
   // the recorder menu closes as soon as anything outside it is touched
   const recMenu = useRef<HTMLDetailsElement>(null)
   useEffect(() => {
@@ -304,7 +304,7 @@ function TopBar({
             </div>
             <div className="text-fg2 mt-1 flex justify-between font-mono text-[11px]">
               <span>{formatTime(recorder.position)}</span>
-              {recorder.remaining !== undefined && <span>−{formatTime(recorder.remaining)}</span>}
+              {length !== undefined && <span>−{formatTime(Math.max(0, length - position))}</span>}
             </div>
           </div>
           <Btn className="col-span-2 h-11" aria-label="Stop" onClick={() => press('stop')}>

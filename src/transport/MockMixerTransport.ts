@@ -114,7 +114,7 @@ export class MockMixerTransport implements IMixerTransport {
       (recorder.state === 'playing' || recorder.state === 'recording')
     ) {
       const position = recorder.position + 1
-      const patch = { position, remaining: Math.max(0, DEMO_TAKE_S - position) }
+      const patch = { position, length: Math.max(DEMO_TAKE_S, position) }
       this.mixer = applyCommand(this.mixer, { type: 'recorder', patch })
       this.emit({ type: 'recorder', patch })
     }
