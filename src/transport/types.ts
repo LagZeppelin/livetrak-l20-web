@@ -1,4 +1,5 @@
 import type { Mixer, MixerCommand } from '@/lib/mixer'
+import type { Device, DeviceCommand } from '@/lib/devices'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected'
 
@@ -22,3 +23,12 @@ export interface IMixerTransport {
   /** Returns an unsubscribe function. */
   onEvent(listener: (event: MixerEvent) => void): () => void
 }
+
+/** What the Pi sends to each browser: mixer events plus the phone list. */
+export type HubMessage = MixerEvent | { type: 'devices'; devices: Device[] }
+
+/** What a browser sends to the Pi. hello comes first and says who it is. */
+export type ClientMessage =
+  | { type: 'hello'; id: string; phone: boolean }
+  | { type: 'mixer'; cmd: MixerCommand }
+  | { type: 'device'; cmd: DeviceCommand }

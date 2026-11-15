@@ -17,7 +17,7 @@ export default function App() {
   const source = useMixerStore((s) => s.source)
   useEffect(() => {
     // Bluetooth may only start from a click, so the real mixer connects via the status pill
-    if (source === 'demo') void connect()
+    if (source !== 'l20') void connect().catch(() => {})
   }, [connect, source])
   useEffect(() => {
     // keep the screen awake while the mixer is open; the lock drops when the tab hides, so take it again

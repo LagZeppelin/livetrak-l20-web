@@ -378,3 +378,14 @@ export function applyCommand(mixer: Mixer, cmd: MixerCommand): Mixer {
 function strip<T extends object>(o: T): Partial<T> {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>
 }
+
+/** The command for the stereo partner, or null. Pan is mirrored; name, color and phase stay per channel. */
+export function partnerCommand(mixer: Mixer, cmd: MixerCommand): MixerCommand | null {
+  if (cmd.type !== 'channel' && cmd.type !== 'eq' && cmd.type !== 'send') return null
+  const partner = mixer.channels[cmd.ch - 1]?.linkedWith
+  if (!partner) return null
+  if (cmd.type !== 'channel') return { ...cmd, ch: partner }
+  const { name: _n, color: _c, phase: _p, ...patch } = cmd.patch
+  if (patch.pan !== undefined) patch.pan = -patch.pan
+  return Object.keys(patch).length ? { type: 'channel', ch: partner, patch } : null
+}
