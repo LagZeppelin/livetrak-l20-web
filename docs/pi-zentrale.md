@@ -24,8 +24,16 @@ npm start            # http://localhost:8080 (iPad-Ansicht), http://localhost:80
 
 `PORT` und `DATA_DIR` lassen sich per Umgebungsvariable ändern.
 
+## Auf dem Pi
+
+`pi/install.sh` richtet einen Raspberry Pi 5 ein (Node 22, App bauen, Bluetooth-Rechte, systemd-Dienst `l20-hub` auf Port 80
+mit `L20=ble`, Update-Timer alle 15 min über `pi/update.sh`, eigenes WLAN „L20“ per NetworkManager ab dem nächsten Neustart).
+Bluetooth läuft über BlueZ (`server/ble.ts`, Paket `node-ble`) mit derselben Logik wie im Browser (`BleMidiTransport` mit
+austauschbarem `BleLink`). Reißt die Verbindung ab, beendet sich der Server und systemd startet ihn neu.
+Schritt-für-Schritt-Anleitung für den Mac: Projektdateien `anleitungen/pi-einrichten.md`.
+
 ## Noch offen
 
-1. Bluetooth vom Pi zum L-20 (zur Zeit läuft auf dem Pi der Demo-Mixer).
-2. Pi-Einrichtung: eigenes WLAN mit Passwort, Captive Portal → Startseite (Mixer / Licht), Autostart, Updates aus GitHub.
+1. Bluetooth vom Pi und WLAN „L20“ am echten Gerät testen.
+2. Captive Portal → Startseite (Mixer / Licht), Status „L-20 verbunden“ im iPad.
 3. Profile auf den Pi statt im Browser; Admin-PIN fürs iPad (heute gilt jeder Browser ohne `?phone` als Admin).
