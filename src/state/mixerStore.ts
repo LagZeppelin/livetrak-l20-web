@@ -1,14 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { applyCommand, createMixer, type Mixer, type MixerCommand } from '@/lib/mixer'
+import {
+  applyCommand,
+  createMixer,
+  partnerCommand,
+  type Mixer,
+  type MixerCommand,
+} from '@/lib/mixer'
 import { profileCommands, type Profile } from '@/lib/profile'
-import { BleMidiTransport } from '@/transport/BleMidiTransport'
-import { MockMixerTransport } from '@/transport/MockMixerTransport'
-import type { ConnectionStatus, IMixerTransport } from '@/transport/types'
+import type { ConnectionStatus } from '@/transport/types'
+import { hub, source, transport } from './connection'
 
 interface MixerState {
-  /** 'demo' = built-in fake mixer, 'l20' = real L-20 over Bluetooth (needs a click to connect). */
-  source: 'demo' | 'l20'
+  /** 'demo' = built-in fake mixer, 'l20' = real L-20 over Bluetooth (needs a click to connect), 'hub' = via the Raspberry Pi. */
+  source: typeof source
   status: ConnectionStatus
   mixer: Mixer
   /** Latest meter levels (dBFS), channels 1–20, main L/R, FX1 L/R, FX2 L/R. Kept apart from mixer so meters don't churn it. */
@@ -31,22 +36,6 @@ interface MixerState {
   setDefaultProfile: (id: string | null) => void
   /** Sends every setting of the profile to the mixer. */
   loadProfile: (id: string) => void
-}
-
-// shortcut: picked once per page load by URL (?l20 = real mixer); the WebSocket client to the Pi joins here later
-const source = new URLSearchParams(globalThis.location?.search).has('l20') ? 'l20' : 'demo'
-const transport: IMixerTransport =
-  source === 'l20' ? new BleMidiTransport() : new MockMixerTransport()
-
-/** The command for the stereo partner, or null. Pan is mirrored; name, color and phase stay per channel. */
-export function partnerCommand(mixer: Mixer, cmd: MixerCommand): MixerCommand | null {
-  if (cmd.type !== 'channel' && cmd.type !== 'eq' && cmd.type !== 'send') return null
-  const partner = mixer.channels[cmd.ch - 1]?.linkedWith
-  if (!partner) return null
-  if (cmd.type !== 'channel') return { ...cmd, ch: partner }
-  const { name: _n, color: _c, phase: _p, ...patch } = cmd.patch
-  if (patch.pan !== undefined) patch.pan = -patch.pan
-  return Object.keys(patch).length ? { type: 'channel', ch: partner, patch } : null
 }
 
 export const useMixerStore = create<MixerState>()(
@@ -129,8 +118,8 @@ export const useMixerStore = create<MixerState>()(
   ),
 )
 
-// Events from other devices (later via the Pi) are applied as-is: the sender already linked them.
-// Moves on the L-20 itself know nothing of our stereo links, so the partner is sent along here.
+// Events from other devices (via the Pi) are applied as-is: the sender already linked them, and the Pi adds the
+// partner for moves on the L-20 itself. Over direct Bluetooth this browser has to do that.
 transport.onEvent((event) => {
   if (event.type === 'meters') useMixerStore.setState({ meters: event.levels })
   else if (event.type === 'snapshot') useMixerStore.setState({ mixer: event.mixer })
@@ -141,3 +130,5 @@ transport.onEvent((event) => {
     if (partner) transport.send(partner)
   }
 })
+
+hub?.onStatus((status) => useMixerStore.setState({ status }))

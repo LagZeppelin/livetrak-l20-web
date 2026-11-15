@@ -346,13 +346,15 @@ function TopBar({
         </div>
       </details>
 
-      <a
-        href={source === 'demo' ? '?l20' : '?'}
-        className="text-fg3 text-xs underline"
-        title="Zwischen Demo-Mixer und echtem L-20 wechseln"
-      >
-        {source === 'demo' ? 'Demo · zum echten L-20' : 'Echter L-20 · zur Demo'}
-      </a>
+      {source !== 'hub' && (
+        <a
+          href={source === 'demo' ? '?l20' : '?'}
+          className="text-fg3 text-xs underline"
+          title="Zwischen Demo-Mixer und echtem L-20 wechseln"
+        >
+          {source === 'demo' ? 'Demo · zum echten L-20' : 'Echter L-20 · zur Demo'}
+        </a>
+      )}
       <button
         type="button"
         onClick={() => connect().catch((e: Error) => alert(e.message))}
@@ -360,12 +362,10 @@ function TopBar({
       >
         <StatusPill connected={status === 'connected'}>
           {status === 'connected'
-            ? source === 'demo'
-              ? 'DEMO VERBUNDEN'
-              : 'L-20 VERBUNDEN'
+            ? { demo: 'DEMO VERBUNDEN', l20: 'L-20 VERBUNDEN', hub: 'PI VERBUNDEN' }[source]
             : status === 'connecting'
               ? 'VERBINDE…'
-              : source === 'demo'
+              : source !== 'l20'
                 ? 'GETRENNT · NEU VERBINDEN'
                 : 'MIT L-20 VERBINDEN'}
         </StatusPill>
