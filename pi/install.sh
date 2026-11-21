@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sets up a Raspberry Pi 5 (Raspberry Pi OS 64-bit, Bookworm or newer) as the L-20 hub. Safe to run again.
+# Sets up a Raspberry Pi 5 (Raspberry Pi OS 64-bit, Bookworm or Trixie) as the L-20 hub. Safe to run again.
 # Usage (on the Pi, while it still has internet):
 #   curl -fsSL https://raw.githubusercontent.com/LagZeppelin/livetrak-l20-web/main/pi/install.sh | bash -s -- 'WLAN-Passwort'
 set -euo pipefail
@@ -12,11 +12,23 @@ fi
 APP="$HOME/livetrak-l20-web"
 ME="$(id -un)"
 
-echo "=== 1/5 Programme installieren (Node.js 22, git) ==="
-if ! node -v 2>/dev/null | grep -qE '^v(2[2-9]|[3-9][0-9])'; then
+echo "=== 1/5 Programme installieren (Node.js 20.19+ oder 22.12+, git) ==="
+# the app builds on Node 20.19+ as well as 22.12+ (only the test runner wants 22, and tests don't run on the Pi)
+node_ok() {
+  node -e 'const [a, b] = process.versions.node.split(".").map(Number)
+    process.exit(a > 22 || (a === 22 && b >= 12) || (a === 20 && b >= 19) ? 0 : 1)' 2>/dev/null
+}
+sudo apt-get update -q
+# Raspberry Pi OS Trixie brings Node 20.19 itself; older systems get Node 22 from NodeSource
+CANDIDATE="$(apt-cache policy nodejs | awk '/Candidate:/ {print $2}')"
+if ! node_ok && dpkg --compare-versions "${CANDIDATE:-0}" ge 20.19; then
+  sudo apt-get install -y nodejs npm
+fi
+if ! node_ok; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
+node_ok || { echo "Node.js ist zu alt ($(node -v 2>/dev/null)). Bitte Screenshot an Claude schicken."; exit 1; }
 sudo apt-get install -y git bluez
 
 echo "=== 2/5 App holen und bauen ==="
