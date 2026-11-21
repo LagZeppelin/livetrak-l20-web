@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { FADER_MIN } from '@/lib/mixer'
 import { cn } from '@/lib/utils'
 import { dbToPos, formatDb, posToDb, SCALE_MARKS } from '@/lib/scale'
-import { meterStep } from '@/lib/meterBallistics'
+import { meterStep, peakStep } from '@/lib/meterBallistics'
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
@@ -41,28 +41,39 @@ const covered = (level: number | undefined) =>
   Math.max(0, (dbToPos(level ?? -99) - ZERO) / (1 - ZERO))
 
 /**
- * Smooths the coarse L-20 meter steps (see meterBallistics) and writes the grey cover size
- * straight to the element each frame, so 30 meters don't re-render React 60 times a second.
+ * Smooths the coarse L-20 meter steps (see meterBallistics) and writes the grey cover and
+ * peak-hold line straight to the elements each frame, so 30 meters don't re-render React 60×/s.
  */
-function useSmoothMeter(level: number | undefined, prop: 'height' | 'width') {
+function useSmoothMeter(level: number | undefined, axis: 'y' | 'x') {
   const cover = useRef<HTMLDivElement>(null)
+  const peakLine = useRef<HTMLDivElement>(null)
   const target = useRef(FADER_MIN)
   const shown = useRef(FADER_MIN)
+  const peak = useRef({ db: FADER_MIN, heldMs: 0 })
   const frame = useRef(0)
   useEffect(() => {
     target.current = level ?? FADER_MIN
     if (frame.current) return
     let last = performance.now()
     const tick = (now: number) => {
-      shown.current = meterStep(shown.current, target.current, Math.min(now - last, 100))
+      const dt = Math.min(now - last, 100)
       last = now
-      if (cover.current) cover.current.style[prop] = `${covered(shown.current) * 100}%`
+      shown.current = meterStep(shown.current, target.current, dt)
+      peak.current = peakStep(peak.current, shown.current, dt)
+      const c = covered(shown.current) * 100
+      const p = covered(peak.current.db) * 100
+      if (cover.current) cover.current.style[axis === 'y' ? 'height' : 'width'] = `${c}%`
+      if (peakLine.current) {
+        peakLine.current.style[axis === 'y' ? 'top' : 'right'] = `${p}%`
+        peakLine.current.style.opacity = p < 100 ? '1' : '0'
+      }
       // stop when settled, restart on the next level change (saves battery)
-      frame.current =
-        Math.abs(shown.current - target.current) > 0.05 ? requestAnimationFrame(tick) : 0
+      const busy =
+        Math.abs(shown.current - target.current) > 0.05 || peak.current.db > shown.current + 0.05
+      frame.current = busy ? requestAnimationFrame(tick) : 0
     }
     frame.current = requestAnimationFrame(tick)
-  }, [level, prop])
+  }, [level, axis])
   useEffect(
     () => () => {
       cancelAnimationFrame(frame.current)
@@ -70,16 +81,21 @@ function useSmoothMeter(level: number | undefined, prop: 'height' | 'width') {
     },
     [],
   )
-  return cover
+  return { cover, peakLine }
 }
 
 /** Vertical meter on the fader taper so it lines up with the scale. */
 export function Meter({ level }: { level: number | undefined }) {
-  const cover = useSmoothMeter(level, 'height')
+  const { cover, peakLine } = useSmoothMeter(level, 'y')
   return (
     <div className="bg-track relative w-1.5 overflow-hidden rounded-full">
       <div className="meter-fill absolute inset-x-0 bottom-0" style={{ top: `${ZERO * 100}%` }}>
         <div ref={cover} className="bg-track absolute inset-x-0 top-0" style={{ height: '100%' }} />
+        <div
+          ref={peakLine}
+          className="absolute inset-x-0 h-0.5 bg-white/80 opacity-0"
+          style={{ top: '100%' }}
+        />
       </div>
     </div>
   )
@@ -87,7 +103,7 @@ export function Meter({ level }: { level: number | undefined }) {
 
 /** Horizontal meter for the phone rows, same zero point as the horizontal faders. */
 export function HMeter({ level }: { level: number | undefined }) {
-  const cover = useSmoothMeter(level, 'width')
+  const { cover, peakLine } = useSmoothMeter(level, 'x')
   return (
     <div className="bg-track relative h-1 overflow-hidden rounded-full">
       <div
@@ -98,6 +114,11 @@ export function HMeter({ level }: { level: number | undefined }) {
           ref={cover}
           className="bg-track absolute inset-y-0 right-0"
           style={{ width: '100%' }}
+        />
+        <div
+          ref={peakLine}
+          className="absolute inset-y-0 w-0.5 bg-white/80 opacity-0"
+          style={{ right: '100%' }}
         />
       </div>
     </div>
