@@ -60,7 +60,7 @@ export function Shell({
             </Btn>
           ))}
         </div>
-        <Label className="mt-auto mb-2">Handys</Label>
+        <Label className="mt-auto mb-2">Admin</Label>
         <PhonesButton />
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
