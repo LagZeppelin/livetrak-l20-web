@@ -8,6 +8,7 @@ import {
   type MixerCommand,
 } from '@/lib/mixer'
 import { profileCommands, type Profile } from '@/lib/profile'
+import { randomId } from '@/lib/utils'
 import type { ConnectionStatus } from '@/transport/types'
 import { hub, source, transport } from './connection'
 
@@ -77,7 +78,7 @@ export const useMixerStore = create<MixerState>()(
       defaultProfileId: null,
       saveProfile: (name, id) => {
         const profile: Profile = {
-          id: id ?? crypto.randomUUID(),
+          id: id ?? randomId(),
           name,
           savedAt: new Date().toISOString(),
           mixer: get().mixer,

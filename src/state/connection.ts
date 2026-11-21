@@ -1,3 +1,4 @@
+import { randomId } from '@/lib/utils'
 import { BleMidiTransport } from '@/transport/BleMidiTransport'
 import { HubTransport } from '@/transport/HubTransport'
 import { MockMixerTransport } from '@/transport/MockMixerTransport'
@@ -11,7 +12,7 @@ export const myDeviceId: string =
   params.get('test') ??
   globalThis.localStorage?.getItem('l20-device-id') ??
   (() => {
-    const id = crypto.randomUUID()
+    const id = randomId()
     globalThis.localStorage?.setItem('l20-device-id', id)
     return id
   })()
