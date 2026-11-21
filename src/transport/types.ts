@@ -24,8 +24,29 @@ export interface IMixerTransport {
   onEvent(listener: (event: MixerEvent) => void): () => void
 }
 
-/** What the Pi sends to each browser: mixer events plus the phone list. */
-export type HubMessage = MixerEvent | { type: 'devices'; devices: Device[] }
+/** The Pi's Bluetooth link to the L-20, for the admin panel. demo = the Pi runs the built-in fake mixer. */
+export interface L20Link {
+  state: 'searching' | 'connected' | 'error' | 'demo'
+  /** ms since 1970, when this state began */
+  since: number
+  error?: string
+}
+
+/** One line of the Pi's server log. */
+export interface PiLogLine {
+  t: number
+  error: boolean
+  text: string
+}
+
+/**
+ * What the Pi sends to each browser: mixer events plus the phone list; the iPad (not phones) also gets
+ * the L-20 link and the server log (pi: after hello link + whole log, then each change: link alone or one new line).
+ */
+export type HubMessage =
+  | MixerEvent
+  | { type: 'devices'; devices: Device[] }
+  | { type: 'pi'; link?: L20Link; log?: PiLogLine[] }
 
 /** What a browser sends to the Pi. hello comes first and says who it is. */
 export type ClientMessage =

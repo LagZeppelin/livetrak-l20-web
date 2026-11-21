@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { deviceLabel } from '@/lib/devices'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
 import { cn, randomId } from '@/lib/utils'
 import { useDevicesStore } from '@/state/devicesStore'
+import { useMixerStore } from '@/state/mixerStore'
+import { logTime as time, useL20Link, usePiStore } from '@/state/piStore'
 import { Btn, Icon, Label } from '../components/controls'
 
-/** Admin menu on the iPad: which phone controls which mix, and who may open the full mixer. */
+/** Admin menu on the iPad: which phone controls which mix and who may open the full mixer (Handys), and the Pi's link to the L-20 with its live log (Verbindung). */
 export function AdminDialog({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<'phones' | 'link'>('phones')
   const devices = useDevicesStore((s) => s.devices)
@@ -140,43 +142,62 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-const MOCK_LOG = [
-  ['22:41:02', 'info', 'L-20 Hub läuft: http://localhost:80'],
-  ['22:41:02', 'info', 'Bluetooth: suche L-20 …'],
-  [
-    '22:41:32',
-    'error',
-    'Kein L-20 gefunden. Ist der BTA-1 eingesteckt und der L-20 an? Neuer Versuch in 5 s.',
-  ],
-  ['22:41:37', 'info', 'Bluetooth: suche L-20 …'],
-  ['22:41:41', 'info', 'Bluetooth: L-20_7C:2A gefunden, verbinde …'],
-  ['22:41:42', 'info', 'Bluetooth: MIDI-Dienst geöffnet'],
-  ['22:41:42', 'info', 'Mit dem L-20 verbunden.'],
-  ['22:41:44', 'info', 'Zustand vom L-20 empfangen (20 Kanäle)'],
-  ['22:43:10', 'info', 'iPad verbunden'],
-  ['22:44:05', 'info', 'Handy „Lisa“ verbunden (Mix C)'],
-] as const
+const DOT = { good: 'bg-good', busy: 'bg-warn', bad: 'bg-bad' } as const
+
+/** Copies text; on the Pi (http, not https) the browser has no clipboard API, so the old way is the fallback. */
+async function copy(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const area = document.createElement('textarea')
+    area.value = text
+    document.body.append(area)
+    area.select()
+    document.execCommand('copy')
+    area.remove()
+  }
+}
 
 function LinkTab() {
-  const steps = [
-    { label: 'iPad ⇄ Pi', how: 'WLAN', state: 'ok', text: 'verbunden' },
-    { label: 'Pi ⇄ L-20', how: 'Bluetooth', state: 'ok', text: 'verbunden seit 22:41' },
+  const wifi = useMixerStore((s) => s.status)
+  const l20 = useL20Link()
+  const live = usePiStore((s) => s.log)
+  const [paused, setPaused] = useState<typeof live | null>(null)
+  const [copied, setCopied] = useState(false)
+  const log = paused ?? live
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!paused) box.current?.scrollTo({ top: box.current.scrollHeight })
+  }, [log, paused])
+
+  if (!l20)
+    return (
+      <p className="text-fg2 py-8 text-center">
+        Verbindung und Log vom Raspberry Pi gibt es nur, wenn die App vom Pi geöffnet wird. Gerade
+        läuft sie ohne Pi (Demo oder direkt per Bluetooth).
+      </p>
+    )
+
+  const cards = [
+    {
+      label: 'iPad ⇄ Pi',
+      how: 'WLAN',
+      dot: wifi === 'connected' ? 'good' : wifi === 'connecting' ? 'busy' : 'bad',
+      text:
+        wifi === 'connected' ? 'verbunden' : wifi === 'connecting' ? 'verbinde neu …' : 'getrennt',
+    },
+    { label: 'Pi ⇄ L-20', how: 'Bluetooth', ...l20 },
   ] as const
   return (
     <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
       <div className="grid grid-cols-2 gap-2">
-        {steps.map((s) => (
-          <div key={s.label} className="card flex items-center gap-3 px-4 py-3">
-            <span
-              className={cn(
-                'size-3 rounded-full',
-                s.state === 'ok' ? 'bg-good' : s.state === 'busy' ? 'bg-warn' : 'bg-bad',
-              )}
-            />
-            <div>
-              <div className="text-base font-semibold">{s.label}</div>
-              <div className="text-fg2 text-sm">
-                {s.how}: {s.text}
+        {cards.map((c) => (
+          <div key={c.label} className="card flex items-center gap-3 px-4 py-3">
+            <span className={cn('size-3 shrink-0 rounded-full', DOT[c.dot])} />
+            <div className="min-w-0">
+              <div className="text-base font-semibold">{c.label}</div>
+              <div className={cn('text-sm', c.dot === 'bad' ? 'text-bad' : 'text-fg2')}>
+                {c.how}: {c.text}
               </div>
             </div>
           </div>
@@ -185,14 +206,36 @@ function LinkTab() {
       <div className="flex items-center justify-between">
         <Label>Live-Log vom Pi</Label>
         <div className="flex gap-2">
-          <Btn className="h-9 px-3">Anhalten</Btn>
-          <Btn className="h-9 px-3">Kopieren</Btn>
+          <Btn
+            kind={paused ? 'on' : 'plain'}
+            className="h-9 px-3"
+            onClick={() => setPaused(paused ? null : live)}
+          >
+            {paused ? 'Weiter' : 'Anhalten'}
+          </Btn>
+          <Btn
+            className="h-9 w-24 px-3"
+            onClick={() =>
+              void copy(
+                log.map((l) => `${time(l.t)} ${l.error ? 'FEHLER ' : ''}${l.text}`).join('\n'),
+              ).then(() => {
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              })
+            }
+          >
+            {copied ? 'Kopiert' : 'Kopieren'}
+          </Btn>
         </div>
       </div>
-      <div className="border-line bg-canvas min-h-0 flex-1 overflow-y-auto rounded border p-3 font-mono text-xs leading-relaxed">
-        {MOCK_LOG.map(([t, level, text], i) => (
-          <div key={i} className={cn(level === 'error' ? 'text-bad' : 'text-fg2')}>
-            <span className="text-fg3">{t}</span> {text}
+      <div
+        ref={box}
+        className="border-line bg-canvas min-h-0 flex-1 overflow-y-auto rounded border p-3 font-mono text-xs leading-relaxed select-text"
+      >
+        {log.length === 0 && <div className="text-fg3">Noch nichts im Log.</div>}
+        {log.map((l, i) => (
+          <div key={i} className={l.error ? 'text-bad' : 'text-fg2'}>
+            <span className="text-fg3">{time(l.t)}</span> {l.text}
           </div>
         ))}
       </div>

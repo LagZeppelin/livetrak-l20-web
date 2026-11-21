@@ -93,3 +93,23 @@ test('malformed messages are ignored', () => {
     hub.receive(browser(), '{"type":"mixer","cmd":{"type":"channel","ch":1}}'),
   ).not.toThrow()
 })
+
+test('only the iPad gets the L-20 link and the server log, phones never', () => {
+  const hub = new Hub(fakeL20().l20)
+  hub.addLog('vor dem iPad')
+  const ipad = browser()
+  const phone = browser()
+  hub.join(ipad)
+  hub.join(phone)
+  say(hub, ipad, { type: 'hello', id: 'ipad', phone: false })
+  say(hub, phone, { type: 'hello', id: 'p1', phone: true })
+  expect(ipad.got.at(-1)).toMatchObject({ type: 'pi', log: [{ text: 'vor dem iPad' }] })
+  hub.setLink({ state: 'connected' })
+  hub.addLog('Kein L-20 gefunden', true)
+  expect(ipad.got.at(-2)).toMatchObject({ type: 'pi', link: { state: 'connected' } })
+  expect(ipad.got.at(-1)).toMatchObject({
+    type: 'pi',
+    log: [{ text: 'Kein L-20 gefunden', error: true }],
+  })
+  expect(phone.got.some((m) => m.type === 'pi')).toBe(false)
+})

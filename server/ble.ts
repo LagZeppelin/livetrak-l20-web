@@ -10,6 +10,7 @@ const SCAN_MS = 30_000
  * without a D-Bus system bus node-ble throws an unhandled error, which also ends the server for systemd to restart.
  */
 export async function openBlueZ(onLost: () => void): Promise<BleLink> {
+  console.log('Bluetooth: suche L-20 …')
   const { bluetooth, destroy } = createBluetooth()
   const adapter = await bluetooth.defaultAdapter()
   if (!(await adapter.isDiscovering())) await adapter.startDiscovery()
@@ -31,11 +32,13 @@ export async function openBlueZ(onLost: () => void): Promise<BleLink> {
     throw new Error('Kein L-20 gefunden. Ist der BTA-1 eingesteckt und der L-20 an?')
   }
   await adapter.stopDiscovery().catch(() => {})
+  console.log(`Bluetooth: ${await device.toString()} gefunden, verbinde …`)
   await device.connect()
   device.on('disconnect', onLost)
   const service = await (await device.gatt()).getPrimaryService(BLE_MIDI_SERVICE)
   const char = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC)
   await char.startNotifications()
+  console.log('Bluetooth: MIDI-Dienst geöffnet')
   return {
     write: (packet) => char.writeValueWithoutResponse(Buffer.from(packet)),
     onData: (listener) => char.on('valuechanged', listener),

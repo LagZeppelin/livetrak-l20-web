@@ -9,6 +9,7 @@ import {
 import { dbToPos, formatDb, formatTime, posToDb } from '@/lib/scale'
 import { cn } from '@/lib/utils'
 import { useDevicesStore } from '@/state/devicesStore'
+import { useL20Link } from '@/state/piStore'
 import { useMixerStore } from '@/state/mixerStore'
 import {
   Btn,
@@ -92,18 +93,28 @@ export function Shell({
   )
 }
 
-/** Opens the admin menu; the badge counts phones waiting for a mix. */
+/** Opens the admin menu; the badge counts phones waiting for a mix, the dot shows the Pi's link to the L-20. */
 function PhonesButton() {
   const [open, setOpen] = useState(false)
   const waiting = useDevicesStore((s) => s.devices.filter((d) => !d.mix).length)
+  const l20 = useL20Link()
   return (
     <>
       <Btn
-        aria-label="Handys verwalten"
+        aria-label="Admin"
+        title={l20 ? `L-20: ${l20.text}` : undefined}
         className="relative h-12 w-full"
         onClick={() => setOpen(true)}
       >
         <Icon name="phone" className="size-[22px]" />
+        {l20 && (
+          <span
+            className={cn(
+              'border-sidebar absolute -top-1 -left-1 size-3 rounded-full border-2',
+              { good: 'bg-good', busy: 'bg-warn', bad: 'bg-bad' }[l20.dot],
+            )}
+          />
+        )}
         {waiting > 0 && (
           <span className="bg-warn text-canvas absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full font-mono text-xs font-semibold">
             {waiting}
