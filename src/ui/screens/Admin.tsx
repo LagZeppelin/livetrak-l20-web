@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { deviceLabel } from '@/lib/devices'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
-import { cn } from '@/lib/utils'
+import { cn, randomId } from '@/lib/utils'
 import { useDevicesStore } from '@/state/devicesStore'
 import { Btn, Icon, Label } from '../components/controls'
 
@@ -105,7 +105,7 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             className="text-sm underline"
-            onClick={() => window.open(`?phone&test=${crypto.randomUUID().slice(0, 5)}`)}
+            onClick={() => window.open(`?phone&test=${randomId().slice(0, 5)}`)}
           >
             Test-Handy in neuem Tab öffnen
           </button>
