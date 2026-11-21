@@ -1,9 +1,10 @@
 /**
  * The Pi hub: serves the built web app and keeps every browser in sync over a WebSocket (/ws).
  * Start: npm run build && npm start   (PORT, default 8080; DATA_DIR for the saved phone list, default ./data;
- * L20=ble talks to the real L-20 over the Pi's Bluetooth, otherwise the demo mixer runs)
+ * talks to the real L-20 over Bluetooth when BlueZ/D-Bus is there (the Pi), otherwise runs the demo mixer;
+ * L20=ble or L20=demo forces one)
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
@@ -38,7 +39,10 @@ function loadDevices(): Device[] {
   }
 }
 
-const BLE = process.env.L20 === 'ble'
+// the real L-20 wherever BlueZ is reachable (the Pi, however it was started); L20=demo or L20=ble forces a mode
+const BLE = process.env.L20
+  ? process.env.L20 === 'ble'
+  : existsSync('/run/dbus/system_bus_socket') || existsSync('/var/run/dbus/system_bus_socket')
 // a lost Bluetooth link ends the server; systemd starts it again, and the browsers reconnect by themselves
 const l20 = BLE
   ? new BleMidiTransport(() =>
