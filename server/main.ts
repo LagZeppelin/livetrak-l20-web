@@ -7,6 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
+import { format } from 'node:util'
 import { WebSocketServer } from 'ws'
 import type { Device } from '@/lib/devices'
 import { BleMidiTransport } from '@/transport/BleMidiTransport'
@@ -43,7 +44,8 @@ const l20 = BLE
   ? new BleMidiTransport(() =>
       openBlueZ(() => {
         console.error('Verbindung zum L-20 verloren, starte neu.')
-        process.exit(1)
+        hub.setLink({ state: 'error', error: 'Verbindung zum L-20 verloren' })
+        setTimeout(() => process.exit(1), 300) // lets the iPad still get the last lines
       }),
     )
   : new MockMixerTransport()
@@ -51,6 +53,19 @@ const hub = new Hub(l20, loadDevices(), (devices) => {
   mkdirSync(DATA_DIR, { recursive: true })
   writeFileSync(DEVICES_FILE, JSON.stringify(devices, null, 2))
 })
+
+// every server log line also goes to the admin panel on the iPad (still to the journal as before)
+for (const [name, error] of [
+  ['log', false],
+  ['warn', true],
+  ['error', true],
+] as const) {
+  const original = console[name]
+  console[name] = (...args: unknown[]) => {
+    original(...args)
+    hub.addLog(format(...args), error)
+  }
+}
 
 const http = createServer(async (req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname))
@@ -79,14 +94,17 @@ new WebSocketServer({ server: http, path: '/ws' }).on('connection', (ws) => {
 
 http.listen(PORT, () => console.log(`L-20 Hub läuft: http://localhost:${PORT}`))
 
-// shortcut: until the L-20 is found the browsers show the empty default desk and "PI VERBUNDEN"; an L-20 status pill can follow
+// until the L-20 is found the browsers show the empty default desk; the admin panel shows the search
 for (;;) {
   try {
+    hub.setLink({ state: 'searching' })
     await l20.connect()
     console.log(BLE ? 'Mit dem L-20 verbunden.' : 'Demo-Mixer läuft.')
+    hub.setLink({ state: BLE ? 'connected' : 'demo' })
     break
   } catch (e) {
     console.error((e as Error).message, 'Neuer Versuch in 5 s.')
+    hub.setLink({ state: 'error', error: (e as Error).message })
     await new Promise((r) => setTimeout(r, 5000))
   }
 }

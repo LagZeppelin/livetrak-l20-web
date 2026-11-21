@@ -8,6 +8,8 @@ import type {
   MixerEvent,
 } from './types'
 
+type PiMessage = Extract<HubMessage, { type: 'pi' }>
+
 const RETRY_MS = [500, 1000, 2000, 5000]
 
 /**
@@ -21,6 +23,7 @@ export class HubTransport implements IMixerTransport {
   private listeners = new Set<(e: MixerEvent) => void>()
   private deviceListeners = new Set<(d: Device[]) => void>()
   private statusListeners = new Set<(s: ConnectionStatus) => void>()
+  private piListeners = new Set<(m: PiMessage) => void>()
 
   private hello: { id: string; phone: boolean }
 
@@ -77,6 +80,12 @@ export class HubTransport implements IMixerTransport {
     return () => this.deviceListeners.delete(listener)
   }
 
+  /** L-20 link and server log for the admin panel (iPad only). */
+  onPi(listener: (m: PiMessage) => void): () => void {
+    this.piListeners.add(listener)
+    return () => this.piListeners.delete(listener)
+  }
+
   onStatus(listener: (s: ConnectionStatus) => void): () => void {
     this.statusListeners.add(listener)
     return () => this.statusListeners.delete(listener)
@@ -88,6 +97,7 @@ export class HubTransport implements IMixerTransport {
 
   private receive(msg: HubMessage) {
     if (msg.type === 'devices') for (const l of this.deviceListeners) l(msg.devices)
+    else if (msg.type === 'pi') for (const l of this.piListeners) l(msg)
     else for (const l of this.listeners) l(msg)
   }
 

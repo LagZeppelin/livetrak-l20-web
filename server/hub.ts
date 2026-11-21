@@ -7,7 +7,15 @@ import {
   type Mixer,
   type MixerCommand,
 } from '@/lib/mixer'
-import type { ClientMessage, HubMessage, IMixerTransport } from '@/transport/types'
+import type {
+  ClientMessage,
+  HubMessage,
+  IMixerTransport,
+  L20Link,
+  PiLogLine,
+} from '@/transport/types'
+
+const LOG_LINES = 500
 
 /** One open browser (iPad or phone) as the hub sees it. */
 export interface Client {
@@ -89,6 +97,9 @@ export function mayChangeDevices(client: Client, cmd: DeviceCommand): boolean {
 export class Hub {
   mixer: Mixer = createMixer()
   devices: Device[]
+  link: L20Link = { state: 'searching', since: Date.now() }
+  /** The last LOG_LINES lines of the server log, for the admin panel. */
+  log: PiLogLine[] = []
   private clients = new Set<Client>()
   private l20: IMixerTransport
   /** Called after the phone list changed, e.g. to save it. */
@@ -135,6 +146,7 @@ export class Hub {
       if (msg.type === 'hello') {
         client.id = msg.id
         client.phone = msg.phone
+        if (!msg.phone) client.send({ type: 'pi', link: this.link, log: this.log })
       } else if (msg.type === 'mixer') {
         if (!mayChangeMixer(client, this.devices, msg.cmd)) return
         this.mixer = applyCommand(this.mixer, msg.cmd)
@@ -150,6 +162,22 @@ export class Hub {
     } catch (e) {
       console.warn('Ignored a message the mixer state could not take:', raw, e)
     }
+  }
+
+  setLink(link: Omit<L20Link, 'since'>) {
+    this.link = { ...link, since: Date.now() }
+    this.toAdmins({ type: 'pi', link: this.link })
+  }
+
+  addLog(text: string, error = false) {
+    const line = { t: Date.now(), error, text }
+    this.log = [...this.log.slice(1 - LOG_LINES), line]
+    this.toAdmins({ type: 'pi', log: [line] })
+  }
+
+  /** Only the iPad: phones never see the log. Browsers before their hello count as phones. */
+  private toAdmins(msg: HubMessage) {
+    for (const c of this.clients) if (c.phone === false) c.send(msg)
   }
 
   private broadcast(msg: HubMessage, except?: Client) {
