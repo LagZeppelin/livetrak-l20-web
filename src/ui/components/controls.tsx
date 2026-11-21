@@ -1,7 +1,8 @@
-import { useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { FADER_MIN } from '@/lib/mixer'
 import { cn } from '@/lib/utils'
 import { dbToPos, formatDb, posToDb, SCALE_MARKS } from '@/lib/scale'
+import { meterStep } from '@/lib/meterBallistics'
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
@@ -39,15 +40,46 @@ const ZERO = dbToPos(0)
 const covered = (level: number | undefined) =>
   Math.max(0, (dbToPos(level ?? -99) - ZERO) / (1 - ZERO))
 
+/**
+ * Smooths the coarse L-20 meter steps (see meterBallistics) and writes the grey cover size
+ * straight to the element each frame, so 30 meters don't re-render React 60 times a second.
+ */
+function useSmoothMeter(level: number | undefined, prop: 'height' | 'width') {
+  const cover = useRef<HTMLDivElement>(null)
+  const target = useRef(FADER_MIN)
+  const shown = useRef(FADER_MIN)
+  const frame = useRef(0)
+  useEffect(() => {
+    target.current = level ?? FADER_MIN
+    if (frame.current) return
+    let last = performance.now()
+    const tick = (now: number) => {
+      shown.current = meterStep(shown.current, target.current, Math.min(now - last, 100))
+      last = now
+      if (cover.current) cover.current.style[prop] = `${covered(shown.current) * 100}%`
+      // stop when settled, restart on the next level change (saves battery)
+      frame.current =
+        Math.abs(shown.current - target.current) > 0.05 ? requestAnimationFrame(tick) : 0
+    }
+    frame.current = requestAnimationFrame(tick)
+  }, [level, prop])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current)
+      frame.current = 0
+    },
+    [],
+  )
+  return cover
+}
+
 /** Vertical meter on the fader taper so it lines up with the scale. */
 export function Meter({ level }: { level: number | undefined }) {
+  const cover = useSmoothMeter(level, 'height')
   return (
     <div className="bg-track relative w-1.5 overflow-hidden rounded-full">
       <div className="meter-fill absolute inset-x-0 bottom-0" style={{ top: `${ZERO * 100}%` }}>
-        <div
-          className="bg-track absolute inset-x-0 top-0"
-          style={{ height: `${covered(level) * 100}%` }}
-        />
+        <div ref={cover} className="bg-track absolute inset-x-0 top-0" style={{ height: '100%' }} />
       </div>
     </div>
   )
@@ -55,6 +87,7 @@ export function Meter({ level }: { level: number | undefined }) {
 
 /** Horizontal meter for the phone rows, same zero point as the horizontal faders. */
 export function HMeter({ level }: { level: number | undefined }) {
+  const cover = useSmoothMeter(level, 'width')
   return (
     <div className="bg-track relative h-1 overflow-hidden rounded-full">
       <div
@@ -62,8 +95,9 @@ export function HMeter({ level }: { level: number | undefined }) {
         style={{ width: `${(1 - ZERO) * 100}%` }}
       >
         <div
+          ref={cover}
           className="bg-track absolute inset-y-0 right-0"
-          style={{ width: `${covered(level) * 100}%` }}
+          style={{ width: '100%' }}
         />
       </div>
     </div>
