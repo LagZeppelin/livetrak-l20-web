@@ -51,6 +51,14 @@ sudo tee /etc/dbus-1/system.d/node-ble.conf >/dev/null <<CONF
 </busconfig>
 CONF
 
+# BlueZ's own MIDI plugin grabs the L-20's MIDI service and then refuses our writes (NotAuthorized); the hub talks MIDI itself
+BTD="$(systemctl show -p ExecStart bluetooth | grep -o 'path=[^ ;]*' | head -1 | cut -d= -f2)"
+sudo mkdir -p /etc/systemd/system/bluetooth.service.d
+printf '[Service]\nExecStart=\nExecStart=%s -P midi\n' "${BTD:-/usr/libexec/bluetooth/bluetoothd}" |
+  sudo tee /etc/systemd/system/bluetooth.service.d/no-midi.conf >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl restart bluetooth
+
 echo "=== 4/5 Autostart und automatische Updates ==="
 sudo tee /etc/systemd/system/l20-hub.service >/dev/null <<UNIT
 [Unit]

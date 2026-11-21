@@ -33,13 +33,6 @@ export async function openBlueZ(onLost: () => void): Promise<BleLink> {
   }
   await adapter.stopDiscovery().catch(() => {})
   console.log(`Bluetooth: ${await device.toString()} gefunden, verbinde …`)
-  // the L-20's MIDI port only takes writes from a paired device (else BlueZ answers NotAuthorized); pairing is "just works"
-  if (String(await device.isPaired()) !== 'true') {
-    console.log('Bluetooth: kopple mit dem L-20 (einmalig) …')
-    await device.pair().catch((e: Error) => {
-      throw new Error(`Koppeln mit dem L-20 fehlgeschlagen: ${e.message}`)
-    })
-  }
   await device.connect()
   device.on('disconnect', onLost)
   const service = await (await device.gatt()).getPrimaryService(BLE_MIDI_SERVICE)
@@ -47,7 +40,7 @@ export async function openBlueZ(onLost: () => void): Promise<BleLink> {
   await char.startNotifications()
   console.log('Bluetooth: MIDI-Dienst geöffnet')
   return {
-    // a refused write means the link is unusable; restarting connects (and pairs) afresh instead of crashing
+    // a refused write means the link is unusable; restarting connects afresh instead of crashing (NotAuthorized: see the BlueZ MIDI plugin note in pi/install.sh)
     write: (packet) =>
       char.writeValueWithoutResponse(Buffer.from(packet)).catch((e: Error) => {
         console.error(`Bluetooth: Senden an den L-20 abgelehnt (${e.message})`)
