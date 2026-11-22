@@ -2,8 +2,6 @@
 
 Web-basierte Fernbedienung und Monitor-Mixing für das **Zoom LiveTrak L-20**.
 
-Ziel ist eine moderne, touch-optimierte Oberfläche für iPad und Handys (privater Gebrauch für 3 Bandmitglieder), die Schwächen der originalen iOS-App behebt (kein Stereo-Linking, umständliche Monitor-Bedienung, starre Kanal-Ansichten).
-
 ---
 
 ## 🎯 Funktionen
