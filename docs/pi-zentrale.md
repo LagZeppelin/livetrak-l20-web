@@ -27,7 +27,7 @@ npm start            # http://localhost:8080 (iPad-Ansicht), http://localhost:80
 ## Auf dem Pi
 
 `pi/install.sh` richtet einen Raspberry Pi 5 ein (Node 20.19+ aus Raspberry Pi OS oder Node 22 von NodeSource, App bauen, Bluetooth-Rechte, systemd-Dienst `l20-hub` auf Port 80
-mit `L20=ble`, Update-Timer alle 15 min über `pi/update.sh`, eigenes WLAN „L20“ per NetworkManager ab dem nächsten Neustart).
+mit `L20=ble`, keine automatischen Updates (von Hand per LAN-Kabel: `bash pi/update.sh`), BlueZ-MIDI-Plugin aus, eigenes WLAN „L20“ per NetworkManager ab dem nächsten Neustart).
 Bluetooth läuft über BlueZ (`server/ble.ts`, Paket `node-ble`) mit derselben Logik wie im Browser (`BleMidiTransport` mit
 austauschbarem `BleLink`). Reißt die Verbindung ab, beendet sich der Server und systemd startet ihn neu.
 Schritt-für-Schritt-Anleitung für den Mac: Projektdateien `anleitungen/pi-einrichten.md`.

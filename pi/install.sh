@@ -59,7 +59,7 @@ printf '[Service]\nExecStart=\nExecStart=%s -P midi\n' "${BTD:-/usr/libexec/blue
 sudo systemctl daemon-reload
 sudo systemctl restart bluetooth
 
-echo "=== 4/5 Autostart und automatische Updates ==="
+echo "=== 4/5 Autostart ==="
 sudo tee /etc/systemd/system/l20-hub.service >/dev/null <<UNIT
 [Unit]
 Description=L-20 Mixer-Zentrale
@@ -71,37 +71,21 @@ WorkingDirectory=$APP
 Environment=PORT=80 L20=ble
 # port 80 so the iPad only needs http://l20.local
 AmbientCapabilities=CAP_NET_BIND_SERVICE
-ExecStart=/usr/bin/node dist-server/main.js
+ExecStart=$(command -v node) dist-server/main.js
 Restart=always
-RestartSec=3
+# not faster: every restart reconnects Bluetooth, which disturbs the Pi's WLAN
+RestartSec=20
 
 [Install]
 WantedBy=multi-user.target
 UNIT
-sudo tee /etc/systemd/system/l20-update.service >/dev/null <<UNIT
-[Unit]
-Description=L-20 Mixer-Zentrale aktualisieren
-
-[Service]
-Type=oneshot
-User=$ME
-ExecStart=/bin/bash $APP/pi/update.sh
-UNIT
-sudo tee /etc/systemd/system/l20-update.timer >/dev/null <<UNIT
-[Unit]
-Description=L-20 Mixer-Zentrale alle 15 Minuten auf Updates prüfen
-
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=15min
-
-[Install]
-WantedBy=timers.target
-UNIT
+# no automatic updates (Ron, 2026-11-22): the Pi stays offline; update by hand with pi/update.sh over a LAN cable
+sudo systemctl disable --now l20-update.timer 2>/dev/null || true
+sudo rm -f /etc/systemd/system/l20-update.service /etc/systemd/system/l20-update.timer
 # update.sh restarts the hub after an update
 echo "$ME ALL=(root) NOPASSWD: /usr/bin/systemctl restart l20-hub" | sudo tee /etc/sudoers.d/l20-hub >/dev/null
 sudo systemctl daemon-reload
-sudo systemctl enable --now l20-hub l20-update.timer
+sudo systemctl enable --now l20-hub
 
 echo "=== 5/5 Eigenes WLAN \"L20\" (ab dem nächsten Neustart) ==="
 sudo nmcli connection delete L20 >/dev/null 2>&1 || true
@@ -112,4 +96,4 @@ sudo nmcli connection add type wifi ifname wlan0 con-name L20 ssid L20 autoconne
 echo
 echo "Fertig. Nach einem Neustart (sudo reboot) öffnet der Pi das WLAN \"L20\"."
 echo "iPad und Handys: mit \"L20\" verbinden, dann http://l20.local öffnen (Handys: http://l20.local/?phone)."
-echo "Updates holt der Pi sich, sobald er per LAN-Kabel Internet hat."
+echo "Updates: LAN-Kabel zum Router, dann bash ~/livetrak-l20-web/pi/update.sh"
