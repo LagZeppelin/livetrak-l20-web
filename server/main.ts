@@ -98,8 +98,9 @@ new WebSocketServer({ server: http, path: '/ws' }).on('connection', (ws) => {
 
 http.listen(PORT, () => console.log(`L-20 Hub läuft: http://localhost:${PORT}`))
 
-// until the L-20 is found the browsers show the empty default desk; the admin panel shows the search
-for (;;) {
+// until the L-20 is found the browsers show the empty default desk; the admin panel shows the search.
+// Retries slow down to once a minute: on the Pi, WLAN and Bluetooth share one radio, and fast retries starve the WLAN.
+for (let wait = 5; ; wait = Math.min(wait * 2, 60)) {
   try {
     hub.setLink({ state: 'searching' })
     await l20.connect()
@@ -107,8 +108,8 @@ for (;;) {
     hub.setLink({ state: BLE ? 'connected' : 'demo' })
     break
   } catch (e) {
-    console.error((e as Error).message, 'Neuer Versuch in 5 s.')
+    console.error((e as Error).message, `Neuer Versuch in ${wait} s.`)
     hub.setLink({ state: 'error', error: (e as Error).message })
-    await new Promise((r) => setTimeout(r, 5000))
+    await new Promise((r) => setTimeout(r, wait * 1000))
   }
 }
