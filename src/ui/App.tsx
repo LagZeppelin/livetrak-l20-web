@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MONITOR_MIXES, type MonitorMixId } from '@/lib/mixer'
+import { phoneParam } from '@/lib/utils'
 import { useMixerStore } from '@/state/mixerStore'
 import { ChannelDetail } from './screens/ChannelDetail'
 import { MasterDetail } from './screens/MasterDetail'
@@ -8,9 +9,9 @@ import { Phone, PhoneEntry } from './screens/Phone'
 import { shownBySelect, SLOT_COUNT, slotChannel, slotOf, type View } from './mixView'
 import { Overview, Shell } from './screens/Shell'
 
-// ?phone = a musician's phone (joins, waits for the admin); ?phone=C skips that for testing
-const phoneParam = new URLSearchParams(location.search).get('phone')
-const phoneMix = phoneParam?.toUpperCase() as MonitorMixId
+// ?phone (or a phone-sized screen) = a musician's phone (joins, picks a mix); ?phone=C skips that for testing
+const phone = phoneParam()
+const phoneMix = phone?.toUpperCase() as MonitorMixId
 
 export default function App() {
   const connect = useMixerStore((s) => s.connect)
@@ -40,7 +41,7 @@ export default function App() {
     }
   }, [])
   if (MONITOR_MIXES.includes(phoneMix)) return <Phone mix={phoneMix} />
-  return phoneParam === null ? <Ipad /> : <PhoneEntry />
+  return phone === null ? <Ipad /> : <PhoneEntry />
 }
 
 function Ipad() {

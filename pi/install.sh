@@ -91,9 +91,12 @@ echo "=== 5/5 Eigenes WLAN \"L20\" (ab dem nächsten Neustart) ==="
 sudo nmcli connection delete L20 >/dev/null 2>&1 || true
 sudo nmcli connection add type wifi ifname wlan0 con-name L20 ssid L20 autoconnect yes \
   connection.autoconnect-priority 100 802-11-wireless.mode ap 802-11-wireless.band bg \
-  ipv4.method shared wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$PASS" >/dev/null
+  ipv4.method shared ipv4.addresses 10.42.0.1/24 wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$PASS" >/dev/null
+# captive portal: on this WLAN every name points to the Pi, so phones open the start page by themselves
+sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+echo "address=/#/10.42.0.1" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/l20-portal.conf >/dev/null
 
 echo
 echo "Fertig. Nach einem Neustart (sudo reboot) öffnet der Pi das WLAN \"L20\"."
-echo "iPad und Handys: mit \"L20\" verbinden, dann http://l20.local öffnen (Handys: http://l20.local/?phone)."
+echo "iPad und Handys: mit \"L20\" verbinden, die Startseite öffnet sich von selbst (sonst http://10.42.0.1)."
 echo "Updates: LAN-Kabel zum Router, dann bash ~/livetrak-l20-web/pi/update.sh"

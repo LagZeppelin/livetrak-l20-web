@@ -32,8 +32,15 @@ Bluetooth läuft über BlueZ (`server/ble.ts`, Paket `node-ble`) mit derselben L
 austauschbarem `BleLink`). Reißt die Verbindung ab, beendet sich der Server und systemd startet ihn neu.
 Schritt-für-Schritt-Anleitung für den Mac: Projektdateien `anleitungen/pi-einrichten.md`.
 
+## Startseite (Captive Portal)
+
+Im WLAN „L20“ zeigt dnsmasq jeden Namen auf den Pi (`10.42.0.1`, `pi/install.sh`). Die Internet-Prüfung von iOS/Android
+landet deshalb beim Pi, der mit der Startseite (`public/start.html`) antwortet. Handy und iPad öffnen sie von selbst.
+Nach einem Tipp auf „Mixer“ merkt sich der Pi das Gerät (`/portal/ok`) und beantwortet die Prüfung wie erwartet
+(`server/portal.ts`), damit es im WLAN bleibt. Auf dem iPhone weist die Seite auf Safari hin, weil das Pop-up-Fenster
+nichts zum Home-Bildschirm legen kann. Ohne `?phone` wählt die App auf handygroßen Bildschirmen die Handy-Ansicht.
+
 ## Noch offen
 
 1. Bluetooth vom Pi und WLAN „L20“ am echten Gerät testen.
-2. Captive Portal → Startseite (Mixer / Licht), Status „L-20 verbunden“ im iPad.
-3. Profile auf den Pi statt im Browser; Admin-PIN fürs iPad (heute gilt jeder Browser ohne `?phone` als Admin).
+2. Profile auf den Pi statt im Browser; Admin-PIN fürs iPad (heute gilt jeder Browser ohne `?phone` als Admin).

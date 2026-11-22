@@ -7,6 +7,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { hostname } from 'node:os'
 import { extname, join, normalize } from 'node:path'
 import { format } from 'node:util'
 import { WebSocketServer } from 'ws'
@@ -15,6 +16,7 @@ import { BleMidiTransport } from '@/transport/BleMidiTransport'
 import { MockMixerTransport } from '@/transport/MockMixerTransport'
 import { openBlueZ } from './ble'
 import { Hub } from './hub'
+import { route } from './portal'
 
 const PORT = Number(process.env.PORT ?? 8080)
 const DATA_DIR = process.env.DATA_DIR ?? 'data'
@@ -71,16 +73,49 @@ for (const [name, error] of [
   }
 }
 
+/** Devices (by IP) that tapped a tile on the start page; their "internet check" passes from then on. */
+// shortcut: kept until the hub restarts (the Pi is switched off after each rehearsal); add an expiry if it runs for days
+const accepted = new Set<string>()
+
 const http = createServer(async (req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname))
+  const ip = req.socket.remoteAddress ?? ''
+  if (path === '/portal/ok') {
+    accepted.add(ip)
+    return res.writeHead(204).end()
+  }
+  const to = route(req.headers.host ?? '', path, accepted.has(ip))
+  if (to === 'no-content') return res.writeHead(204).end()
+  if (to === 'apple-success')
+    return res
+      .writeHead(200, { 'content-type': 'text/html' })
+      .end('<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>')
   // only files inside dist/; unknown paths get the app (it reads ?phone etc. itself)
-  const file = path.includes('..') || extname(path) === '' ? 'index.html' : path.slice(1)
+  const file =
+    to === 'start'
+      ? 'start.html'
+      : path.includes('..') || extname(path) === ''
+        ? 'index.html'
+        : path.slice(1)
   try {
     let body: Buffer | string = await readFile(join(WEB_DIR, file))
     // tells the app it runs on the hub, so it talks to /ws instead of Bluetooth or the demo
     if (file === 'index.html')
       body = body.toString().replace('</head>', '<meta name="l20-hub" content="1"></head>')
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' })
+    // the start page links to the Pi by the address this device reached it on (the portal comes in under any name)
+    if (file === 'start.html') {
+      const addr = (req.socket.localAddress ?? '').replace(/^::ffff:/, '')
+      const port = req.socket.localPort === 80 ? '' : `:${req.socket.localPort}`
+      body = body
+        .toString()
+        .replace('__PI__', `http://${addr.includes(':') ? `[${addr}]` : addr}${port}`)
+        .replace('__NAME__', `${hostname().toLowerCase()}.local${port}`)
+    }
+    res.writeHead(200, {
+      'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
+      // the portal pages must never come from a cache, or the phone's check keeps its old answer
+      ...(to === 'start' && { 'cache-control': 'no-store' }),
+    })
     res.end(body)
   } catch {
     res.writeHead(404).end()
