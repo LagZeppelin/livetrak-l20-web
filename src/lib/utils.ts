@@ -17,3 +17,13 @@ export function randomId(): string {
   const hex = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
+
+/**
+ * Which view this device gets: the ?phone value ('' = no mix picked yet, 'C' = mix C for testing), '' on a
+ * phone-sized screen without the parameter (e.g. typed in by hand), or null = iPad with the whole desk.
+ */
+export function phoneParam(): string | null {
+  const phone = new URLSearchParams(globalThis.location?.search).get('phone')
+  const small = !!globalThis.screen && Math.min(screen.width, screen.height) < 600
+  return phone ?? (small ? '' : null)
+}

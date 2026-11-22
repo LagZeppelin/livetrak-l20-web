@@ -1,4 +1,5 @@
 import { randomId } from '@/lib/utils'
+import { phoneParam } from '@/lib/utils'
 import { BleMidiTransport } from '@/transport/BleMidiTransport'
 import { HubTransport } from '@/transport/HubTransport'
 import { MockMixerTransport } from '@/transport/MockMixerTransport'
@@ -30,7 +31,7 @@ export const source: 'demo' | 'l20' | 'hub' = globalThis.document?.querySelector
     : 'demo'
 
 export const hub =
-  source === 'hub' ? new HubTransport({ id: myDeviceId, phone: params.has('phone') }) : null
+  source === 'hub' ? new HubTransport({ id: myDeviceId, phone: phoneParam() !== null }) : null
 
 export const transport: IMixerTransport =
   hub ?? (source === 'l20' ? new BleMidiTransport() : new MockMixerTransport())

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0c10" />
+    <title>Proberaum</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0b0c10;
+        color: #eceef3;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 32px 16px;
+        box-sizing: border-box;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 8px 0 24px;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        width: 100%;
+        max-width: 520px;
+      }
+      .tile {
+        all: unset;
+        cursor: pointer;
+        background: #15171d;
+        border: 1px solid #262a34;
+        border-radius: 16px;
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .tile:focus-visible {
+        outline: 2px solid #6aaef5;
+      }
+      .tile svg {
+        width: 56px;
+        height: 56px;
+      }
+      .tile small {
+        font-size: 14px;
+        font-weight: 400;
+        color: #8b91a1;
+      }
+      .tile[disabled] {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .hint {
+        display: none;
+        max-width: 520px;
+        margin-top: 24px;
+        background: #1d2028;
+        border: 1px solid #3a3f4b;
+        border-radius: 12px;
+        padding: 16px;
+        font-size: 17px;
+        line-height: 1.5;
+      }
+      .hint b {
+        color: #3ecf8e;
+      }
+      .hint a {
+        color: #6aaef5;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Was möchtest du steuern?</h1>
+    <div class="tiles">
+      <button class="tile" id="mixer" type="button">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#3ecf8e"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M6 3v18M12 3v18M18 3v18" />
+          <rect x="4" y="13" width="4" height="3" rx="1" fill="#0b0c10" />
+          <rect x="10" y="6" width="4" height="3" rx="1" fill="#0b0c10" />
+          <rect x="16" y="10" width="4" height="3" rx="1" fill="#0b0c10" />
+        </svg>
+        Mixer
+        <small>LiveTrak L-20</small>
+      </button>
+      <button class="tile" type="button" disabled aria-disabled="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#f2b44b"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path
+            d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"
+          />
+        </svg>
+        Licht
+        <small>kommt bald</small>
+      </button>
+    </div>
+    <div class="hint" id="hint" role="status">
+      <b>Fast geschafft!</b><br />
+      Tippe oben rechts auf <b>„Fertig“</b>. Öffne dann <b>Safari</b> und gib <b id="name"></b> ein.
+      Dort kannst du den Mixer über „Teilen → Zum Home-Bildschirm“ ablegen.<br /><br />
+      <a id="here" href="#">Oder hier im Fenster weiter</a>
+    </div>
+    <script>
+      // filled in by the Pi: its address on this WLAN and its .local name
+      const PI = '__PI__'
+      const NAME = '__NAME__'
+      // the app itself picks the phone view on phone-sized screens
+      const target = PI + '/'
+      const ownHost = /^[\d.]+$|\.local$|^localhost$/.test(location.hostname)
+      document.getElementById('name').textContent = NAME
+      document.getElementById('here').href = target
+      document.getElementById('mixer').addEventListener('click', async () => {
+        // tells the Pi this device is done, so its "internet check" passes and it stays on the WLAN
+        await fetch('/portal/ok', { method: 'POST' }).catch(() => {})
+        // in the iPhone's pop-up window "add to home screen" is missing, so point to Safari there
+        if (/iPhone|iPod/.test(navigator.userAgent) && !ownHost) {
+          document.getElementById('hint').style.display = 'block'
+        } else location.href = target
+      })
+    </script>
+  </body>
+</html>
